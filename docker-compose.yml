@@ -1,0 +1,33 @@
+# Use Docker Compose file format version 3.8
+version: '3.8'
+
+# Define the services (containers) we want to run
+services:
+  # PostgreSQL database service
+  postgres:
+    # Use the official PostgreSQL image, version 15
+    image: postgres:15
+
+    # Name the container for easier management
+    container_name: misinfo-postgres
+
+    # Set environment variables used by Postgres to initialize the database
+    environment:
+      POSTGRES_USER: postgres         # Username for the DB
+      POSTGRES_PASSWORD: postgres     # Password for the DB user
+      POSTGRES_DB: misinfo            # Name of the default DB to create
+
+    # Map port 5432 inside the container to 5432 on your machine
+    ports:
+      - "5432:5432"
+
+    # Persist data using a named volume, so it's not lost if the container stops
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+    # Restart the container automatically if it crashes or Docker restarts
+    restart: always
+
+# Define the named volume used above
+volumes:
+  pgdata:
