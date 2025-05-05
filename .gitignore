@@ -172,3 +172,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+.vscode/
+*.db
+docker-compose.override.yml
+logs/
