@@ -1,21 +1,18 @@
-# Use Docker Compose file format version 3.8
-version: '3.8'
-
 # Define the services (containers) we want to run
 services:
   # PostgreSQL database service
   postgres:
-    # Use the official PostgreSQL image, version 15
-    image: postgres:15
+    # Use the official chainguard secure PostgreSQL image, latest version
+    image: cgr.dev/chainguard/postgres:latest
 
     # Name the container for easier management
     container_name: misinfo-postgres
 
     # Set environment variables used by Postgres to initialize the database
     environment:
-      POSTGRES_USER: postgres         # Username for the DB
-      POSTGRES_PASSWORD: postgres     # Password for the DB user
-      POSTGRES_DB: misinfo            # Name of the default DB to create
+      POSTGRES_USER: ${POSTGRES_USER}             # Username for the DB from the environment
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}     # Password for the DB user from the environment
+      POSTGRES_DB: ${POSTGRES_DB}                 # Name of the default DB to create from the environment
 
     # Map port 5432 inside the container to 5432 on your machine
     ports:
