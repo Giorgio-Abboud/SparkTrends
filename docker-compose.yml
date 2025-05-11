@@ -1,30 +1,15 @@
-# Define the services (containers) we want to run
 services:
-  # PostgreSQL database service
   postgres:
-    # Use the official chainguard secure PostgreSQL image, latest version
     image: cgr.dev/chainguard/postgres:latest
-
-    # Name the container for easier management
     container_name: misinfo-postgres
-
-    # Set environment variables used by Postgres to initialize the database
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}             # Username for the DB from the environment
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}     # Password for the DB user from the environment
-      POSTGRES_DB: ${POSTGRES_DB}                 # Name of the default DB to create from the environment
-
-    # Map port 5432 inside the container to 5432 on your machine
-    ports:
-      - "5432:5432"
-
-    # Persist data using a named volume, so it's not lost if the container stops
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-    # Restart the container automatically if it crashes or Docker restarts
+    - pgdata:/var/lib/postgresql/data
     restart: always
-
-# Define the named volume used above
+    ports:
+    - 5432:5432
 volumes:
-  pgdata:
+  pgdata: {}
