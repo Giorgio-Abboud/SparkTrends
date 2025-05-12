@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: cgr.dev/chainguard/postgres:latest
+    container_name: misinfo-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+    - pgdata:/var/lib/postgresql/data
+    restart: always
+    ports:
+    - 5432:5432
+volumes:
+  pgdata: {}
