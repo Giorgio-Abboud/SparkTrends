@@ -28,6 +28,7 @@ All notable changes to this project as well as things I have learned will be doc
   - `docker-compose down` should usually be run instead
   - Port exposure should be conditional on environment
   - Running `python3` vs `python` can affect which pip installation is used
+  - The Chainguard kafka image requires authorized access to use
 - Issues Fixed:
   - `ModuleNotFoundError: No module named 'yaml'` by ensuring correct interpreter and environment (python instead of python3)
 
