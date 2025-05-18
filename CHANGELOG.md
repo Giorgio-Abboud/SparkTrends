@@ -28,7 +28,12 @@ All notable changes to this project as well as things I have learned will be doc
   - `docker-compose down` should usually be run instead
   - Port exposure should be conditional on environment
   - Running `python3` vs `python` can affect which pip installation is used
+  - The Chainguard kafka image requires authorized access to use
 - Issues Fixed:
   - `ModuleNotFoundError: No module named 'yaml'` by ensuring correct interpreter and environment (python instead of python3)
+
+- Useful Websites:
+  - Kafka documentation: https://kafka.apache.org/documentation/#kraft_role
+  - Running Kafka with docker: https://developer.confluent.io/confluent-tutorials/kafka-on-docker/#:~:text=connect%20to%20Kafka.-,Copy,configurations%2C%20consult%20the%20Kafka%20documentation.
 
 ---

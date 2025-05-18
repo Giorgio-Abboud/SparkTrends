@@ -1,34 +1,32 @@
-# SparkCheck
+# SparkTrends
 
-**SparkCheck** is a real-time data engineering project designed to detect and flag deceitful misinformation using a data pipeline powered by Apache Kafka, Spark, Airflow, and NLP.
+**SparkTrends** is a **Market Trends Intelligence Platform** which ingests, processes, and analyzes financial news and stock price data to detect changing market trends. It simulates a scalable and real-time backend pipeline similar to what would be used at companies like Bloomberg.
 
----
 
 ## Project Goal
 
-To fight the rampant spread of false or misleading information online. With misinformation becoming increasingly abundant and potentially harmful, it's critical to identify and verify claims in real time.
+To uncover real-time market insights from ingested financial news and stock data, to analyze it for patterns and trends. It delivers summarized infromation to help its users monitor market shifts in one convenient dashboard.
 
----
 
 ## Tech Stack
 
-- **Apache Kafka** – Real-time data ingestion  
-- **Apache Spark** – Scalable data processing  
-- **Apache Airflow** – Pipeline orchestration and monitoring  
-- **PostgreSQL** – Structured data storage  
-- **Streamlit** – Interactive frontend application  
-- **Python** – Core logic and NLP (Natural Language Processing)
+- **Apache Kafka** – Real-time ingestion of financial news and stock price feeds 
+- **Apache Spark** – Scalable data processing and NLP trend tagging
+- **Apache Airflow** – Workflow orchestration for batch pipelines
+- **PostgreSQL** – Structured storage for processed trend data
+- **Docker** - Full-stack containerized environment with dev/prod configs
+- **Flask** – Hosts a web server with RESTful APIs
+- **Python** – ETL logic, NLP, and Flask backend
 
----
 
 ## Project Phases
 
-### ✅ **Phase 1: Infrastructure (In Progress)**
-- `init_project.py` to auto-generate `.env`, `.env.example`, `docker-compose.yml`, and `requirements.txt`
-- PostgreSQL container using **Chainguard secure image**
-- Environment-aware Docker configurations (dev vs prod)
-- Persistent volume setup for database
-- Kafka producer to ingest claims from JSON [Coming Soon]
-- Kafka consumer to store in PostgreSQL [Coming Soon]
+### **Phase 1: Infrastructure (In Progress)**
+- `init_project.py` generates `.env`, `.env.example`, `docker-compose.yml`, and `requirements.txt`
+- Set up PostgreSQL and Kafka using **Chainguard secure container images**
+- Volume persistence and environment-aware Docker configs
+- Kafka Producer ingests formatted financial data [Coming soon]
+- Kafka consumer stores parsed records in PostgreSQL [Coming Soon]
+
 
 ## Future Works In Progress ⚙️🚧
