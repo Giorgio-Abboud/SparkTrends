@@ -36,4 +36,10 @@ All notable changes to this project as well as things I have learned will be doc
   - Kafka documentation: https://kafka.apache.org/documentation/#kraft_role
   - Running Kafka with docker: https://developer.confluent.io/confluent-tutorials/kafka-on-docker/#:~:text=connect%20to%20Kafka.-,Copy,configurations%2C%20consult%20the%20Kafka%20documentation.
 
+  - NewsAPI: https://newsapi.org/
+  - Finnhub: https://finnhub.io/docs/api/price-target
+  - Alpha Vantage: https://www.alphavantage.co/documentation/
+  - Stock Github: https://github.com/rreichel3/US-Stock-Symbols
+  - Reddit link for future reference (APIs): https://www.reddit.com/r/algotrading/comments/1idhkr5/what_apis_are_you_guys_using_for_stock_data/
+
 ---

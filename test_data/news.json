@@ -1,0 +1,23 @@
+[
+    {
+        "source_id": "news_001",
+        "headline": "Apple announces new AI chip for iPhones",
+        "published_at": "2025-05-17T14:00:00Z",
+        "source_from": "Reuters",
+        "site_url": "https://example.com/apple-ai-chip"
+    },
+    {
+        "source_id": "news_002",
+        "headline": "Federal Reserve hints at interest rate cuts this summer",
+        "published_at": "2025-05-17T15:00:00Z",
+        "source_from": "Bloomberg",
+        "site_url": "https://example.com/fed-rate-cuts"
+    },
+    {
+        "source_id": "news_003",
+        "headline": "Microsoft lays of an additional 7000 employees",
+        "published_at": "2025-05-17T16:00:00Z",
+        "source_from": "New York Times",
+        "site_url": "https://example.com/microsoft-fires-7000"
+    }
+]
