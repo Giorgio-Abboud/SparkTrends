@@ -1,8 +1,11 @@
 from kafka import KafkaProducer
-from kafka.admin import KafkaAdminClient, NewTopic
+import os
 import json
 import logging
-import time  # Used to simulate delay between messages (subject to change)
+from time import sleep  # Used to simulate delay between messages (subject to change)
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Setup logging to print errors if message sending fails
 logging.basicConfig(level=logging.INFO)  # Logs messages with a level of INFO or higher (ignores DEBUG)
@@ -11,7 +14,7 @@ log = logging.getLogger(__name__)  # Retrieves logger instance specific to the c
 # Create a Kafka producer instance
 producer = KafkaProducer(
     # Address of the Kafka broker
-    bootstrap_servers=['localhost:9092'],
+    bootstrap_servers=os.environ["KAFKA_BROKER"],
     
     # Serialize Python dicts to JSON bytes before sending to Kafka
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
@@ -31,7 +34,7 @@ def send_data(file_path, topic):
         producer.send(topic, value=record)\
                 .add_callback(successful_send)\
                 .add_errback(send_error)
-        time.sleep(1)  # Simulate a delay (real-time streaming effect) (subject to change to actual streaming)
+        sleep(1)  # Simulate a delay (real-time streaming effect) (subject to change to actual streaming)
 
 # Called when a message is successfully sent to Kafka
 def successful_send(record_metadata):

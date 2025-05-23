@@ -74,8 +74,13 @@ postgres_service = {
     # Restart policy ensures the container auto-restarts if it crashes or Docker restarts
     'restart': 'always',
 
-    # Attach a named volume so database files persist across container restarts
-    'volumes': [f'{pg_volume_name}:./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql']
+    # Mount volumes:
+    # - A named volume to persist database data across container restarts
+    # - A bind mount to run init.sql on first-time setup (only if volume is empty)
+    'volumes': [
+        f'{pg_volume_name}:/var/lib/postgresql/data',  # Persistent database storage
+        './postgres/init.sql:/docker-entrypoint-initdb.d/init.sql'  # One-time schema init
+    ]
 }
 
 # In dev mode the internal container port 5432 is exposed to the host so local apps connect to Postgres
@@ -108,7 +113,7 @@ kafka_service = {
         'KAFKA_CONTROLLER_LISTENER_NAMES': 'CONTROLLER',
 
         # Maps listener names to protocols and all are PLAINTEXT in this simple setup (subject to change)
-        'KAFKA_LISTENER_SECURITY_PROTOCOL_MAP': 'CONTROLLER:PLAINTEXT,CONTROLLER:PLAINTEXT',
+        'KAFKA_LISTENER_SECURITY_PROTOCOL_MAP': 'PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT',
 
         'KAFKA_INTER_BROKER_LISTENER_NAME': 'PLAINTEXT',
 
@@ -135,11 +140,12 @@ kafka_service = {
         'KAFKA_AUTO_CREATE_TOPICS_ENABLE': "true",
 
         # Kafka’s internal storage location for logs, metadata, and more
-        'KAFKA_LOG_DIRS': '/tmp/kraft-combined-logs'
+        'KAFKA_LOG_DIRS': '/var/lib/kafka/data'
     },
 
     # Persist Kafka data in a named volume (separate for dev and prod)
-    'volumes': [f'{kafka_volume_name}:./kafka-data:/tmp/kraft-combined-logs']
+    'volumes': [f'{kafka_volume_name}:/var/lib/kafka/data']
+
 }
 
 # In dev mode override the listener addresses to use localhost since it is easier to run Kafka tools or clients on a host machine
