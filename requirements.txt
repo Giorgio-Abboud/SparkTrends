@@ -15,6 +15,7 @@ jsonschema-specifications==2025.4.1
 kafka-python==2.2.6
 MarkupSafe==3.0.2
 narwhals==1.38.2
+newsapi-python==0.2.7
 numpy==2.2.5
 packaging==24.2
 pandas==2.2.3
@@ -24,6 +25,7 @@ psycopg2-binary==2.9.10
 pyarrow==20.0.0
 pydeck==0.9.1
 python-dateutil==2.9.0.post0
+python-dotenv==1.1.0
 pytz==2025.2
 PyYAML==6.0.2
 referencing==0.36.2

@@ -2,28 +2,31 @@ services:
   postgres:
     image: cgr.dev/chainguard/postgres:latest
     container_name: market-postgres
+    restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    restart: always
     volumes:
     - pg_data_dev:/var/lib/postgresql/data
     - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+    - sparktrends_net
     ports:
     - 5432:5432
   kafka:
     image: apache/kafka:latest
     container_name: kafka
+    restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -33,8 +36,32 @@ services:
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
     - kafka_data_dev:/var/lib/kafka/data
+    networks:
+    - sparktrends_net
+    healthcheck:
+      test:
+      - CMD
+      - sh
+      - -c
+      - nc -z localhost 9092
+      interval: 10s
+      timeout: 5s
+      retries: 10
     ports:
     - 9092:9092
+  kafka_api_producer:
+    build: .
+    container_name: kafka_api_producer
+    restart: on-failure
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+    - sparktrends_net
+    env_file: .env
 volumes:
   pg_data_dev: {}
   kafka_data_dev: {}
+networks:
+  sparktrends_net:
+    driver: bridge

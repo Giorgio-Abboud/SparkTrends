@@ -12,7 +12,7 @@ import getpass
 env_example_path = ".env.example"
 default_env_content = """POSTGRES_USER=your_postgres_user
 POSTGRES_PASSWORD=your_secure_password
-POSTGRES_DB=misinformation_databse
+POSTGRES_DB=financial_database
 """
 
 # Write the content into the .env file
@@ -63,6 +63,8 @@ postgres_service = {
     'image': 'cgr.dev/chainguard/postgres:latest',  # Secure and minimal Postgres image by Chainguard
     'container_name': 'market-postgres',  # Name to easily reference the container
 
+    'restart': 'unless-stopped',  # This ensures Postgres auto-restarts if it crashes or after a reboot
+
     # Environment variables tell Postgres what user, password and DB to create
     # Values like ${POSTGRES_USER} are read from a local .env file (will not be publicly available)
     'environment': {
@@ -80,7 +82,10 @@ postgres_service = {
     'volumes': [
         f'{pg_volume_name}:/var/lib/postgresql/data',  # Persistent database storage
         './postgres/init.sql:/docker-entrypoint-initdb.d/init.sql'  # One-time schema init
-    ]
+    ],
+
+    # Assign the Postgres service to the custom network for inter-container communication
+    'networks': ['sparktrends_net']
 }
 
 # In dev mode the internal container port 5432 is exposed to the host so local apps connect to Postgres
@@ -94,6 +99,8 @@ kafka_service = {
     'image': 'apache/kafka:latest',  # Chainguard's secure and minimal Kafka with KRaft image
     'container_name': 'kafka',
 
+    'restart': 'unless-stopped',  # This ensures Kafka auto-restarts if it crashes or after a reboot
+
     # Environment variables configuring Kafka KRaft mode
     'environment': {
         'KAFKA_NODE_ID': 1,  # Each node must have a unique numeric ID
@@ -103,7 +110,7 @@ kafka_service = {
         # Listeners are crucial for both consumers and producers to connect and interact with the Kafka broker
         # - PLAINTEXT: for producers/consumers (subject to change)
         # - CONTROLLER: for internal controller coordination
-        'KAFKA_LISTENERS': 'PLAINTEXT://:9092,CONTROLLER://:9093',
+        'KAFKA_LISTENERS': 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093',
 
         # This is what external apps, like a Python client, use to connect to Kafka
         # Using the default service name "kafka" which works inside the Docker network
@@ -144,32 +151,67 @@ kafka_service = {
     },
 
     # Persist Kafka data in a named volume (separate for dev and prod)
-    'volumes': [f'{kafka_volume_name}:/var/lib/kafka/data']
+    'volumes': [f'{kafka_volume_name}:/var/lib/kafka/data'],
 
+    # Assign the Kafka service to the same network as Postgres so other containers can resolve its hostname
+    'networks': ['sparktrends_net'],
+
+    'healthcheck': {
+        'test': ['CMD', 'sh', '-c', 'nc -z localhost 9092'],
+        'interval': '10s',
+        'timeout': '5s',
+        'retries': 10
+    }
 }
 
 # In dev mode override the listener addresses to use localhost since it is easier to run Kafka tools or clients on a host machine
 if dev_mode:
-    kafka_service['environment']['KAFKA_ADVERTISED_LISTENERS'] = 'PLAINTEXT://localhost:9092'
-    kafka_service['environment']['KAFKA_CONTROLLER_QUORUM_VOTERS'] = '1@localhost:9093'
+    kafka_service['environment']['KAFKA_ADVERTISED_LISTENERS'] = 'PLAINTEXT://kafka:9092'
+    kafka_service['environment']['KAFKA_CONTROLLER_QUORUM_VOTERS'] = '1@kafka:9093'
 
     # Expose Kafka’s port 9092 to the host like for local Python scripts
     kafka_service['ports'] = ['9092:9092']
 
+env_file_path = ".env.production" if not dev_mode else ".env"
+
+# This container will run the producer which retrieves news and stock data to then stream it to Kafka
+kafka_api_producer_service = {
+    'build': '.',  # Dockerfile path for building the API producer
+    'container_name': 'kafka_api_producer',  # Helpful name for logs or debugging
+    
+    'restart': 'on-failure',  # Retry only on crashes
+
+    # Ensure this waits until Kafka passes its healthcheck
+    'depends_on': {
+        'kafka': {
+            'condition': 'service_healthy'
+        }
+    },
+    'networks': ['sparktrends_net'],  # Attach to the same Docker network
+    'env_file': env_file_path  # Load secrets like NEWS_API_KEY into the container
+}
 
 # Assemble docker-compose content which includes both services and their named volumes
 compose_config = {
     'services': {
         'postgres': postgres_service, # Include the Postgres service
-        'kafka': kafka_service # Include the Kafka service
+        'kafka': kafka_service, # Include the Kafka service
+        'kafka_api_producer': kafka_api_producer_service # Include the Kafka API Producer service
     },
     'volumes': {
         pg_volume_name: {}, # Register the Postgres volume
         kafka_volume_name: {} # Register the Kafka volume
+    },
+    'networks': {
+        'sparktrends_net': { # An internal Docker network name
+            # This makes sure services like Kafka, Postgres, and future API producers can talk to each other using service names
+            'driver': 'bridge' # Default bridge driver ensures all services are on the same virtual network
+            
+        }
     }
 }
 
-# Covert the python dictionary into a YAML file and do not sort the dictionary keys (keep it this order)
+# Convert the python dictionary into a YAML file and do not sort the dictionary keys
 with open("docker-compose.yml", "w") as f:
     yaml.dump(compose_config, f, sort_keys=False)
 
