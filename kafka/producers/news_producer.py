@@ -18,7 +18,7 @@ newsapi = NewsApiClient(api_key=os.environ["NEWS_API_KEY"]) # Retrieving the api
 BOOTSTRAP_SERVER = os.environ["KAFKA_BROKER"]
 
 # Function to attempt connecting to Kafka with retry logic (kafka_api_producer is running before kafka)
-def connect_to_kafka(max_retries=10, delay=3):
+def connect_to_kafka(max_retries=5, delay=5):
     # Tries to connect to kafka 'max_retries' amount of times
     for attempt in range(max_retries):
         try:
@@ -47,7 +47,7 @@ def connect_to_kafka(max_retries=10, delay=3):
     raise RuntimeError("Kafka broker not available after multiple attempts.")
 
 def stream_news_from_api(topic, companies, producer):
-    # Get 7 days ago (or adjust as needed)
+    # Get from 30 days ago (or adjust as needed)
     earliest_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
     for company in companies:
@@ -83,13 +83,6 @@ def send_error(excp):
 
 # Main execution
 if __name__ == "__main__":
-    # Also used for test json data
-    # # Send news articles to current_news topic
-    # send_data('test_data/news.json', 'current_news')
-
-    # # Send stock records to current_stock topic
-    # send_data('test_data/stocks.json', 'current_stock')
-
     producer = connect_to_kafka() # Ensures that the producer is not created until kafka is running
     tracked_companies = ["Apple", "Tesla", "Microsoft"]
     stream_news_from_api('current_news', tracked_companies, producer)
