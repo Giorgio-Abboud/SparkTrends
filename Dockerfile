@@ -12,4 +12,4 @@ RUN ["pip3", "install", "--no-cache-dir", "-r", "requirements.txt"]
 COPY kafka/ ./kafka/
 
 # Run the Kafka API producer script
-CMD ["python", "kafka/producer.py"]
+CMD ["python", "kafka/producers/producer.py"]

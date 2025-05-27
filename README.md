@@ -1,6 +1,6 @@
 # SparkTrends
 
-**SparkTrends** is a **Market Trends Intelligence Platform** which ingests, processes, and analyzes financial news and stock price data to detect changing market trends. It simulates a scalable and real-time backend pipeline similar to what would be used at companies like Bloomberg.
+**SparkTrends** is a **Market Trends Intelligence Platform** which ingests, processes, and analyzes financial news and stock price data to detect changing market trends. It simulates a scalable and real-time backend pipeline similar to what would be used at companies.
 
 
 ## Project Goal

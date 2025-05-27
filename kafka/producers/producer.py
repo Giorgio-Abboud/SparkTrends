@@ -46,15 +46,6 @@ def connect_to_kafka(max_retries=10, delay=3):
     # If every attempt fails raise an error to stop the script
     raise RuntimeError("Kafka broker not available after multiple attempts.")
 
-# # Create a Kafka producer instance
-# producer = KafkaProducer(
-#     # Address of the Kafka broker
-#     bootstrap_servers=os.environ["KAFKA_BROKER"],
-    
-#     # Serialize Python dicts to JSON bytes before sending to Kafka
-#     value_serializer=lambda v: json.dumps(v).encode('utf-8')
-# )
-
 def stream_news_from_api(topic, companies, producer):
     # Get 7 days ago (or adjust as needed)
     earliest_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -81,23 +72,6 @@ def stream_news_from_api(topic, companies, producer):
 
         except Exception as e:
             log.error(f"Error fetching news for {company}:", exc_info=e)
-
-# Used for the json test data in test_data/...
-# # Function to send data from a file to a Kafka topic
-# def send_data(file_path, topic):
-#     # Load JSON records from file
-#     with open(file_path, 'r') as f:
-#         data = json.load(f)
-
-#     # Send each record to Kafka topic, one by one
-#     for record in data:
-#         print(f"Sending to {topic}: {record}")
-
-#         # Send message with success and error callbacks ("\ to skip to the next line and make it look cleaner")
-#         producer.send(topic, value=record)\
-#                 .add_callback(successful_send)\
-#                 .add_errback(send_error)
-#         sleep(1)  # Simulate a delay (real-time streaming effect) (subject to change to actual streaming)
 
 # Called when a message is successfully sent to Kafka
 def successful_send(record_metadata):

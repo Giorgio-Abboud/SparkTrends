@@ -68,5 +68,5 @@ All notable changes to this project as well as things I have learned will be doc
   - Fix: Once again ensured that the health check worked as intented. Logs were essential in figuring out this issue.
 
 - Dockerfile CMD line not executing and directory not found
-  - Cause: The `chainguard/python:latest-dev` image lacks a proper shell and entrypoint, causing the CMD ["python", "kafka/producer.py"] to not execute.
+  - Cause: The `chainguard/python:latest-dev` image lacks a proper shell and entrypoint, causing the CMD `["python", "kafka/producers/producer.py"]` to not execute.
   - Fix: Switched the base image to `python:3.11-slim-bookworm`, which provides a standard shell environment and supports proper execution of Python scripts.
