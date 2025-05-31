@@ -140,11 +140,8 @@ kafka_service = {
         # Required for enabling transactions (Kafka producers and consumers) with a single broker
         'KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR': 1,
 
-        # Default number of partitions when creating a topic if no other value is specified (possible change)
-        # More partitions results in more parallelism but more overhead
-        'KAFKA_NUM_PARTITIONS': 3,
-
-        'KAFKA_AUTO_CREATE_TOPICS_ENABLE': "true",
+        # Ensure that every topic is manually created
+        'KAFKA_AUTO_CREATE_TOPICS_ENABLE': "false",
 
         # Kafka’s internal storage location for logs, metadata, and more
         'KAFKA_LOG_DIRS': '/var/lib/kafka/data'
@@ -175,20 +172,41 @@ if dev_mode:
 env_file_path = ".env.production" if not dev_mode else ".env"
 
 # This container will run the producer which retrieves news and stock data to then stream it to Kafka
-kafka_api_producer_service = {
+news_producer_service = {
     'build': '.',  # Dockerfile path for building the API producer
-    'container_name': 'kafka_api_producer',  # Helpful name for logs or debugging
+    'container_name': 'news_producer',  # Helpful name for logs or debugging
     
     'restart': 'on-failure',  # Retry only on crashes
+
+    'command': ["python", "kafka/producers/news_producer.py"],  # Run the producer
 
     # Ensure this waits until Kafka passes its healthcheck
     'depends_on': {
         'kafka': {
             'condition': 'service_healthy'
+        },
+        'topic_creator': {
+            'condition': 'service_completed_successfully'
         }
     },
     'networks': ['sparktrends_net'],  # Attach to the same Docker network
     'env_file': env_file_path  # Load secrets like NEWS_API_KEY into the container
+}
+
+topic_creator_service = {
+    'build': {
+        'context': '.'
+    },
+    'container_name': 'topic_creator',
+    'restart': 'no',  # Do not restart if any errors occur
+    'command': ["python", "kafka/topics.py"],
+    'depends_on': {
+        'kafka': {
+            'condition': 'service_healthy'
+        }
+    },
+    'networks': ['sparktrends_net'],
+    'env_file': env_file_path
 }
 
 # Assemble docker-compose content which includes both services and their named volumes
@@ -196,7 +214,8 @@ compose_config = {
     'services': {
         'postgres': postgres_service, # Include the Postgres service
         'kafka': kafka_service, # Include the Kafka service
-        'kafka_api_producer': kafka_api_producer_service # Include the Kafka API Producer service
+        'news_producer': news_producer_service, # Include the Kafka API Producer service
+        'topic_creator': topic_creator_service
     },
     'volumes': {
         pg_volume_name: {}, # Register the Postgres volume

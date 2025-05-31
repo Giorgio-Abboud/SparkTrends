@@ -1,5 +1,4 @@
 from kafka import KafkaProducer
-from kafka.admin import KafkaAdminClient, NewTopic
 import os
 import json
 import logging
@@ -8,6 +7,8 @@ from time import sleep
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ---
 
 # Setup logging to print errors if message sending fails
 logging.basicConfig(level=logging.INFO)  # Logs messages with a level of INFO or higher (ignores DEBUG)

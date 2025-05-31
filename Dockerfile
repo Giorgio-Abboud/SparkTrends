@@ -12,4 +12,5 @@ RUN ["pip3", "install", "--no-cache-dir", "-r", "requirements.txt"]
 COPY kafka/ ./kafka/
 
 # Run the Kafka API producer script
+# Fallback in case the commands in docker compose fail
 CMD ["python", "kafka/producers/news_producer.py"]
