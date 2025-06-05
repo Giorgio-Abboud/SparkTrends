@@ -62,42 +62,43 @@ def load_tracked_companies(file="tracked_data/tracked_companies"):
 
 # ---
 
-# Fetch the news articles that contain a specific ticker
-def stream_news_for_ticker(ticker):
+# Fetch the stock market values that contain a specific ticker
+def stream_stocks_for_ticker(ticker):
     # Build the url to make the correct API call
-    url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={ALPHA_API_KEY}"
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&apikey={ALPHA_API_KEY}"
 
     # Error handling in case of a bad GET request
     try:
         response = requests.get(url)
         if response.status_code == 200:  # Ensuring that the request was successful
-            return response.json().get("feed", [])
+            return response.json().get("Time Series (Daily)", {})
         else:
             log.error(f"Unsuccessful response for {ticker}: {response.status_code}")
     except Exception as e:
-        log.error(f"Failed fetching news for {ticker}: {e}")
+        log.error(f"Failed fetching stock data for {ticker}: {e}")
 
-    return []  # Return an empty list in case an error was caught
+    return {}  # Return an empty list in case an error was caught
 
 # ---
 
-# Pushing the news article dictionaries to the broker
-def stream_news_from_api(topic, producer):
+# Pushing the stock quotes dictionaries to the broker
+def stream_stocks_from_api(topic, producer):
     companies = load_tracked_companies()  # Retrieve the flattened data
 
     for sector, company, ticker in companies:
-        log.info(f"Fetching news for {ticker} ({company}) in the {sector} sector")
-        articles = stream_news_for_ticker(ticker)
+        log.info(f"Fetching stocks for {ticker} ({company}) in the {sector} sector")
+        quotes = stream_stocks_for_ticker(ticker)
 
-        for article in articles:
+        for date, quote in quotes.items():
             # Attaching extra metadata to more easilty filter and search through
-            article["ticker"] = ticker
-            article["company"] = company
-            article["sector"] = sector
+            quote["ticker"] = ticker
+            quote["company"] = company
+            quote["sector"] = sector
+            quote["date"] = date  # Already present in the key but easier to process as a value
 
-            log.info(f"Sending {ticker} to {topic} topic for article: {article['title'][:40]}")  # See 40 characters of the article being sent
+            log.info(f"Sending {ticker} to {topic} topic for quote on {quote['date']}")
 
-            producer.send(topic, value=article)\
+            producer.send(topic, value=quote)\
                 .add_callback(successful_send)\
                 .add_callback(send_error)
             
@@ -120,6 +121,6 @@ def send_error(excp):
 # Main execution
 if __name__ == "__main__":
     producer = connect_to_kafka()
-    stream_news_from_api('current_news', producer)
+    stream_stocks_from_api('current_stocks', producer)
     producer.flush()  # Wait until all buffered messages are sent
     producer.close()  # Close the producer cleanly
