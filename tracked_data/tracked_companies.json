@@ -20,7 +20,7 @@
     { "company": "Palantir Technologies Inc.", "ticker": "PLTR" }
   ],
   
-  "Financial": [
+  "Finance": [
     { "company": "JPMorgan Chase & Co.", "ticker": "JPM" },
     { "company": "Bank of America Corporation", "ticker": "BAC" },
     { "company": "Citigroup Inc.", "ticker": "C" },

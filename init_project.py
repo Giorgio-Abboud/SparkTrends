@@ -58,6 +58,11 @@ dev_mode = input("Is this for development? (y/n): ").lower() == "y"
 pg_volume_name = 'pg_data_dev' if dev_mode else 'pg_data_prod'
 kafka_volume_name = 'kafka_data_dev' if dev_mode else 'kafka_data_prod'
 
+
+# ----------------------------------------
+# I. Create the postgres service
+# ----------------------------------------
+
 # Define the PostgreSQL service spec
 postgres_service = {
     'image': 'cgr.dev/chainguard/postgres:latest',  # Secure and minimal Postgres image by Chainguard
@@ -92,6 +97,10 @@ postgres_service = {
 if dev_mode:
     postgres_service['ports'] = ['5432:5432']
 
+
+# ----------------------------------------
+# II. Create the kafka service
+# ----------------------------------------
 
 # Define the Kafka service (KRaft so no need for ZooKeeper)
 # This Kafka image uses KRaft mode and acts as both broker (node that stores and manages data streams) and controller (manages the metadata)
@@ -171,14 +180,43 @@ if dev_mode:
 
 env_file_path = ".env.production" if not dev_mode else ".env"
 
-# This container will run the producer which retrieves news and stock data to then stream it to Kafka
-news_producer_service = {
-    'build': '.',  # Dockerfile path for building the API producer
-    'container_name': 'news_producer',  # Helpful name for logs or debugging
+
+# ----------------------------------------
+# III. Create the topic service
+# ----------------------------------------
+
+# Container ensuring topic creation
+topic_creator_service = {
+    'build': {
+        'context': '.'
+    },
+    'container_name': 'topic_creator',
+    'restart': 'on-failure',
+    'command': ["python", "kafka/topics.py"],
+    'depends_on': {
+        'kafka': {
+            'condition': 'service_healthy'
+        }
+    },
+    'networks': ['sparktrends_net'],
+    'env_file': env_file_path
+}
+
+
+# ----------------------------------------
+# IV. Create the producer orchestration service
+# ----------------------------------------
+
+# Container to run the utility file which feeds data for the producers to make requests
+producer_utility_service = {
+    'build': {
+        'context': '.'
+    },
+    'container_name': 'orchestrator',
     
     'restart': 'on-failure',  # Retry only on crashes
 
-    'command': ["python", "kafka/producers/news_producer.py"],  # Run the producer
+    'command': ["python", "kafka/utils.py"],
 
     # Ensure this waits until Kafka passes its healthcheck
     'depends_on': {
@@ -193,29 +231,18 @@ news_producer_service = {
     'env_file': env_file_path  # Load secrets like NEWS_API_KEY into the container
 }
 
-topic_creator_service = {
-    'build': {
-        'context': '.'
-    },
-    'container_name': 'topic_creator',
-    'restart': 'no',  # Do not restart if any errors occur
-    'command': ["python", "kafka/topics.py"],
-    'depends_on': {
-        'kafka': {
-            'condition': 'service_healthy'
-        }
-    },
-    'networks': ['sparktrends_net'],
-    'env_file': env_file_path
-}
+
+# ----------------------------------------
+# V. Generate the yml file
+# ----------------------------------------
 
 # Assemble docker-compose content which includes both services and their named volumes
 compose_config = {
     'services': {
         'postgres': postgres_service, # Include the Postgres service
         'kafka': kafka_service, # Include the Kafka service
-        'news_producer': news_producer_service, # Include the Kafka API Producer service
-        'topic_creator': topic_creator_service
+        'topic_creator': topic_creator_service,
+        'orchestrator': producer_utility_service
     },
     'volumes': {
         pg_volume_name: {}, # Register the Postgres volume

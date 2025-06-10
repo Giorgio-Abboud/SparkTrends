@@ -1,0 +1,37 @@
+{
+    "Store_of_Value": [
+        {"crypto": "Bitcoin", "symbol": "BTC"},
+        {"crypto": "Ethereum", "symbol": "ETH"},
+        {"crypto": "Litecoin", "symbol": "LTC"},
+        {"crypto": "Bitcoin Cash", "symbol": "BCH"}
+    ],
+    "Meme_Coin": [
+        {"crypto": "Dogecoin", "symbol": "DOGE"},
+        {"crypto": "Shiba Inu", "symbol": "SHIB"},
+        {"crypto": "Pepe", "symbol": "PEPE"}
+    ],
+    "Stable_Coin": [
+        {"crypto": "Tether", "symbol": "USDT"},
+        {"crypto": "USD Coin", "symbol": "USDC"},
+        {"crypto": "DAI", "symbol": "DAI"},
+        {"crypto": "TrueUSD", "symbol": "TUSD"}
+    ],
+    "Privacy_Coin": [
+        {"crypto": "Monero", "symbol": "XMR"},
+        {"crypto": "Zcash", "symbol": "ZEC"},
+        {"crypto": "Dash", "symbol": "DASH"}
+    ],
+    "Smart_Contract_Platform": [
+        {"crypto": "Cardano", "symbol": "ADA"},
+        {"crypto": "Solana", "symbol": "SOL"},
+        {"crypto": "Polkadot", "symbol": "DOT"},
+        {"crypto": "TRON", "symbol": "TRX"},
+        {"crypto": "Avalanche", "symbol": "AVAX"}
+    ],
+    "Exchange_Coin": [
+        {"crypto": "Binance Coin", "symbol": "BNB"},
+        {"crypto": "OKB", "symbol": "OKB"},
+        {"crypto": "Cronos", "symbol": "CRO"},
+        {"crypto": "KuCoin Token", "symbol": "KCS"}
+    ]
+}
