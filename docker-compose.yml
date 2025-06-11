@@ -1,6 +1,4 @@
 services:
-
-
   postgres:
     image: cgr.dev/chainguard/postgres:latest
     container_name: market-postgres
@@ -16,8 +14,6 @@ services:
     - sparktrends_net
     ports:
     - 5432:5432
-
-
   kafka:
     image: apache/kafka:latest
     container_name: kafka
@@ -52,13 +48,11 @@ services:
       retries: 10
     ports:
     - 9092:9092
-
-
   topic_creator:
     build:
       context: .
     container_name: topic_creator
-    restart: 'no'
+    restart: on-failure
     command:
     - python
     - kafka/topics.py
@@ -68,12 +62,10 @@ services:
     networks:
     - sparktrends_net
     env_file: .env
-
-
-  orchestrater:
+  orchestrator:
     build:
       context: .
-    container_name: orchestrater
+    container_name: orchestrator
     restart: on-failure
     command:
     - python
@@ -86,8 +78,6 @@ services:
     networks:
     - sparktrends_net
     env_file: .env
-
-    
 volumes:
   pg_data_dev: {}
   kafka_data_dev: {}

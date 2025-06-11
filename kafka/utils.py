@@ -92,7 +92,7 @@ def batch_process():
         tracked_data.append(("stocks", sector, company, ticker, "stock_prices"))
 
     for category, crypto, symbol in flat_crypto:  # Same for crypto
-        tracked_data.append[("crypto", category, crypto, symbol, "crypto_prices")]
+        tracked_data.append(("crypto", category, crypto, symbol, "crypto_prices"))
 
     # Call the respective producers and provide the necessary data
     for type, sector, company, ticker, topic in tracked_data:

@@ -8,7 +8,7 @@ load_dotenv()
 BOOTSTRAP_SERVER = os.environ["KAFKA_BROKER"]
 
 def create_topics():
-    admin_client = KafkaAdminClient(BOOTSTRAP_SERVER)  # Create an admin client to handle topic creation
+    admin_client = KafkaAdminClient(bootstrap_servers=BOOTSTRAP_SERVER)  # Create an admin client to handle topic creation
 
     # The list of topics needed for news, stocks and crypto
     topics = [

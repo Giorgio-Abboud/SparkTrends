@@ -1,0 +1,139 @@
+{
+  "Technology": [
+    { "company": "Apple Inc.", "ticker": "AAPL" },
+    { "company": "Microsoft Corporation", "ticker": "MSFT" },
+    { "company": "Alphabet Inc.", "ticker": "GOOGL" },
+    { "company": "Alphabet Inc. (Class C)", "ticker": "GOOG" },
+    { "company": "Meta Platforms Inc.", "ticker": "META" },
+    { "company": "Amazon.com Inc.", "ticker": "AMZN" },
+    { "company": "NVIDIA Corporation", "ticker": "NVDA" },
+    { "company": "Tesla Inc.", "ticker": "TSLA" },
+    { "company": "Netflix, Inc.", "ticker": "NFLX" },
+    { "company": "Adobe Inc.", "ticker": "ADBE" },
+    { "company": "Cisco Systems, Inc.", "ticker": "CSCO" },
+    { "company": "Oracle Corporation", "ticker": "ORCL" },
+    { "company": "Intel Corporation", "ticker": "INTC" },
+    { "company": "Advanced Micro Devices, Inc.", "ticker": "AMD" },
+    { "company": "Salesforce, Inc.", "ticker": "CRM" },
+    { "company": "ServiceNow, Inc.", "ticker": "NOW" },
+    { "company": "Qualcomm Incorporated", "ticker": "QCOM" },
+    { "company": "Palantir Technologies Inc.", "ticker": "PLTR" }
+  ],
+
+  "Finance": [
+    { "company": "JPMorgan Chase & Co.", "ticker": "JPM" },
+    { "company": "Bank of America Corporation", "ticker": "BAC" },
+    { "company": "Citigroup Inc.", "ticker": "C" },
+    { "company": "Goldman Sachs Group Inc.", "ticker": "GS" },
+    { "company": "Morgan Stanley", "ticker": "MS" },
+    { "company": "Wells Fargo & Company", "ticker": "WFC" },
+    { "company": "American Express Company", "ticker": "AXP" },
+    { "company": "Charles Schwab Corporation", "ticker": "SCHW" },
+    { "company": "Visa Inc.", "ticker": "V" },
+    { "company": "Mastercard Incorporated", "ticker": "MA" },
+    { "company": "PayPal Holdings, Inc.", "ticker": "PYPL" }
+  ],  
+
+  "Consumer": [
+    { "company": "Walmart Inc.", "ticker": "WMT" },
+    { "company": "The Home Depot, Inc.", "ticker": "HD" },
+    { "company": "Costco Wholesale Corporation", "ticker": "COST" },
+    { "company": "The Procter & Gamble Company", "ticker": "PG" },
+    { "company": "The Coca-Cola Company", "ticker": "KO" },
+    { "company": "PepsiCo, Inc.", "ticker": "PEP" },
+    { "company": "McDonald's Corporation", "ticker": "MCD" },
+    { "company": "Nike, Inc.", "ticker": "NKE" },
+    { "company": "Starbucks Corporation", "ticker": "SBUX" },
+    { "company": "Target Corporation", "ticker": "TGT" },
+    { "company": "The Walt Disney Company", "ticker": "DIS" }
+
+  ],  
+
+  "Health Care": [
+    { "company": "Johnson & Johnson", "ticker": "JNJ" },
+    { "company": "Pfizer Inc.", "ticker": "PFE" },
+    { "company": "Merck & Co., Inc.", "ticker": "MRK" },
+    { "company": "AbbVie Inc.", "ticker": "ABBV" },
+    { "company": "Eli Lilly and Company", "ticker": "LLY" },
+    { "company": "UnitedHealth Group Incorporated", "ticker": "UNH" },
+    { "company": "Medtronic plc", "ticker": "MDT" },
+    { "company": "Thermo Fisher Scientific Inc.", "ticker": "TMO" },
+    { "company": "Gilead Sciences, Inc.", "ticker": "GILD" }
+  ],  
+
+  "Industrial": [
+    { "company": "Boeing Company", "ticker": "BA" },
+    { "company": "Caterpillar Inc.", "ticker": "CAT" },
+    { "company": "3M Company", "ticker": "MMM" },
+    { "company": "Honeywell International Inc.", "ticker": "HON" },
+    { "company": "General Electric Company", "ticker": "GE" },
+    { "company": "Lockheed Martin Corporation", "ticker": "LMT" },
+    { "company": "Union Pacific Corporation", "ticker": "UNP" },
+    { "company": "FedEx Corporation", "ticker": "FDX" },
+    { "company": "United Parcel Service, Inc.", "ticker": "UPS" },
+    { "company": "Exxon Mobil Corporation", "ticker": "XOM" },
+    { "company": "Chevron Corporation", "ticker": "CVX" },
+    { "company": "ConocoPhillips", "ticker": "COP" }
+  ],  
+
+  "Real Estate": [
+    { "company": "American Tower Corporation", "ticker": "AMT" },
+    { "company": "Simon Property Group, Inc.", "ticker": "SPG" }
+  ],  
+
+  "Utilities": [
+    { "company": "Duke Energy Corporation", "ticker": "DUK" },
+    { "company": "NextEra Energy, Inc.", "ticker": "NEE" },
+    { "company": "Southern Company", "ticker": "SO" }
+  ],  
+
+  "International": [
+    { "company": "Toyota Motor Corporation", "ticker": "TM" },
+    { "company": "Nestl\u00e9 S.A.", "ticker": "NSRGY" },
+    { "company": "Samsung Electronics Co., Ltd.", "ticker": "SSNLF" },
+    { "company": "Alibaba Group Holding Limited", "ticker": "BABA" },
+    { "company": "Tencent Holdings Limited", "ticker": "TCEHY" },
+    { "company": "Siemens AG", "ticker": "SIEGY" },
+    { "company": "LVMH Mo\u00ebt Hennessy Louis Vuitton", "ticker": "LVMUY" }
+  ],
+  
+
+
+
+  
+    "Store_of_Value": [
+        {"crypto": "Bitcoin", "symbol": "BTC"},
+        {"crypto": "Ethereum", "symbol": "ETH"},
+        {"crypto": "Litecoin", "symbol": "LTC"},
+        {"crypto": "Bitcoin Cash", "symbol": "BCH"}
+    ],
+    "Meme_Coin": [
+        {"crypto": "Dogecoin", "symbol": "DOGE"},
+        {"crypto": "Shiba Inu", "symbol": "SHIB"},
+        {"crypto": "Pepe", "symbol": "PEPE"}
+    ],
+    "Stable_Coin": [
+        {"crypto": "Tether", "symbol": "USDT"},
+        {"crypto": "USD Coin", "symbol": "USDC"},
+        {"crypto": "DAI", "symbol": "DAI"},
+        {"crypto": "TrueUSD", "symbol": "TUSD"}
+    ],
+    "Privacy_Coin": [
+        {"crypto": "Monero", "symbol": "XMR"},
+        {"crypto": "Zcash", "symbol": "ZEC"},
+        {"crypto": "Dash", "symbol": "DASH"}
+    ],
+    "Smart_Contract_Platform": [
+        {"crypto": "Cardano", "symbol": "ADA"},
+        {"crypto": "Solana", "symbol": "SOL"},
+        {"crypto": "Polkadot", "symbol": "DOT"},
+        {"crypto": "TRON", "symbol": "TRX"},
+        {"crypto": "Avalanche", "symbol": "AVAX"}
+    ],
+    "Exchange_Coin": [
+        {"crypto": "Binance Coin", "symbol": "BNB"},
+        {"crypto": "OKB", "symbol": "OKB"},
+        {"crypto": "Cronos", "symbol": "CRO"},
+        {"crypto": "KuCoin Token", "symbol": "KCS"}
+    ]
+}

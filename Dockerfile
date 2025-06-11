@@ -8,9 +8,7 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN ["pip3", "install", "--no-cache-dir", "-r", "requirements.txt"]
 
-# Copy your Kafka scripts into the image
+# Copy your Kafka scripts and json files into the image
+# COPY <src> <dest> where src if from my dir and dest is where it will be in the image
 COPY kafka/ ./kafka/
-
-# Run the Kafka API producer script
-# Fallback in case the commands in docker compose fail
-CMD ["python", "kafka/producers/news_producer.py"]
+COPY tracked_data/ ./tracked_data/

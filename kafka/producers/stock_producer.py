@@ -55,8 +55,6 @@ def process_stock_ticker(ticker, company, sector, topic, producer):
             .add_callback(successful_send)\
             .add_errback(send_error)
         
-        sleep(1)  # To slow the flow of data (easier to debug for now)
-
 # -----
 
 # Called when a message is successfully sent to Kafka
