@@ -1,5 +1,6 @@
 FROM python:3.11-slim-bookworm
 
+# Sets the working directory for the following instructions
 WORKDIR /app
 
 # Copy your root-level requirements

@@ -1,7 +1,6 @@
 import os
 import logging
 import requests
-from time import sleep
 from dotenv import load_dotenv
 
 load_dotenv()  # Later change to dynamically pick the correct environment
