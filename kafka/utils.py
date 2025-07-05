@@ -1,4 +1,5 @@
 from producers import news_producer, stock_producer, crypto_producer
+from consumers import consumer
 from kafka import KafkaProducer
 import os
 import json
@@ -89,10 +90,10 @@ def batch_process():
         tracked_data.append(("news", sector, company, ticker, "current_news"))
 
     for sector, company, ticker in flat_company_news:  # Same for stock
-        tracked_data.append(("stocks", sector, company, ticker, "stock_prices"))
+        tracked_data.append(("stocks", sector, company, ticker, "current_stock"))
 
     for category, crypto, symbol in flat_crypto:  # Same for crypto
-        tracked_data.append(("crypto", category, crypto, symbol, "crypto_prices"))
+        tracked_data.append(("crypto", category, crypto, symbol, "current_crypto"))
 
     # Call the respective producers and provide the necessary data
     for type, sector, company, ticker, topic in tracked_data:
@@ -100,7 +101,7 @@ def batch_process():
         if type == "news":
             news_producer.process_news_ticker(ticker, company, sector, topic, producer)
 
-        elif type == "stocks":
+        if type == "stocks":
             stock_producer.process_stock_ticker(ticker, company, sector, topic, producer)
 
         elif type == "crypto":

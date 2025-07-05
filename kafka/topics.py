@@ -14,8 +14,8 @@ def create_topics():
     # The list of topics needed for news, stocks and crypto
     topics = [
         NewTopic("current_news", num_partitions=3, replication_factor=1),
-        NewTopic("stock_prices", num_partitions=3, replication_factor=1),
-        NewTopic("crypto_prices", num_partitions=3, replication_factor=1),
+        NewTopic("current_stock", num_partitions=3, replication_factor=1),
+        NewTopic("current_crypto", num_partitions=3, replication_factor=1),
     ]
 
     # Attempt the creation of topics, handle errors, and close the admin client when done

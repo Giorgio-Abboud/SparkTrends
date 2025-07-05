@@ -44,13 +44,17 @@ def process_news_ticker(ticker, company, sector, topic, producer):
 
     for article in articles:
         # Attaching extra metadata to more easilty filter and search through
-        article["ticker"] = ticker
-        article["company"] = company
-        article["sector"] = sector
+        message = {
+            "ticker" : ticker,
+            "company": company,
+            "sector": sector,
+            "time_published": article['time_published'],
+            "news_info": article
+        }
 
         log.info(f"Sending {ticker} to {topic} topic for article: {article['title'][:40]}")  # See 40 characters of the article being sent
 
-        producer.send(topic, value=article)\
+        producer.send(topic, value=message)\
             .add_callback(successful_send)\
             .add_errback(send_error)
         

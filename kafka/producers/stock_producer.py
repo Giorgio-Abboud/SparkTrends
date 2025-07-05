@@ -19,7 +19,7 @@ ALPHA_API_KEY = os.environ["ALPHA_API_KEY"]
 # Fetch the stock market values that contain a specific ticker
 def stream_stocks_for_ticker(ticker):
     # Build the url to make the correct API call
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&apikey={ALPHA_API_KEY}"
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&apikey={ALPHA_API_KEY}"
 
     # Error handling in case of a bad GET request
     try:
@@ -41,16 +41,19 @@ def process_stock_ticker(ticker, company, sector, topic, producer):
     log.info(f"Fetching stocks for {ticker} ({company}) in the {sector} sector")
     quotes = stream_stocks_for_ticker(ticker)
 
-    for date, quote in quotes.items():
+    for market_date, quote in quotes.items():
         # Attaching extra metadata to more easilty filter and search through
-        quote["ticker"] = ticker
-        quote["company"] = company
-        quote["sector"] = sector
-        quote["date"] = date  # Already present in the key but easier to process as a value
+        message = {
+            "ticker": ticker,
+            "company": company,
+            "sector": sector,
+            "market_date": market_date,
+            "stock_info": quote
+        }
 
-        log.info(f"Sending {ticker} to {topic} topic for quote on {date}")
+        log.info(f"Sending {ticker} to {topic} topic for quote on {market_date}")
 
-        producer.send(topic, value=quote)\
+        producer.send(topic, value=message)\
             .add_callback(successful_send)\
             .add_errback(send_error)
         

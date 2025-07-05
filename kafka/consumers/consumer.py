@@ -2,7 +2,8 @@ import os
 import json
 import logging
 import psycopg2
-from kafka import KafkaConsumer # Possible switch to confluent kafka in the future
+from datetime import datetime
+from kafka import KafkaConsumer
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,7 +30,7 @@ def connect_db():
         raise
 
 consumer = KafkaConsumer(
-    'current_news', 'current_stock',
+    'current_news', 'current_stock', 'current_crypto',
     bootstrap_servers=os.environ["KAFKA_BROKER"],
     value_deserializer=lambda v: json.loads(v.decode('utf-8')),
     auto_offset_reset="earliest",
@@ -40,42 +41,56 @@ consumer = KafkaConsumer(
 def consume_data():
     conn = connect_db() # To connect to the databse
     cur = conn.cursor() # To run SQL commands
-
-    print("Kafka consumer now listening to topics") # Print to see the start of the consumer
+    log.info("Kafka consumer now listening to topics")
 
     for msg in consumer:
         topic = msg.topic
         data = msg.value
-        log.info(f"Received from {topic}: {data}")
+        log.info(f"Received on {topic}: keys={list(data.keys())}")
 
         try:
             if topic == 'current_news':
+                time_published = datetime.strptime(data['time_published'], "%Y%m%dT%H%M%S")
                 cur.execute("""
-                            INSERT INTO news (id, source_id, headline, published_at, source_from, site_url)
-                            VALUES (DEFAULT, %s, %s, %s, %s, %s)
+                            INSERT INTO raw_news (ticker, company, sector, time_published, news_info)
+                            VALUES (%s, %s, %s, %s, %s)
                             """, (
-                                data['source_id'],
-                                data['headline'],
-                                data['published_at'],
-                                data['source_from'],
-                                data['site_url']
+                                data['ticker'],
+                                data['company'],
+                                data['sector'],
+                                time_published,
+                                json.dumps(data['news_info'])
                             ))
 
             elif topic == 'current_stock':
                 cur.execute("""
-                            INSERT INTO stocks (id, ticker, price, published_at)
-                            VALUES (DEFAULT, %s, %s, %s)
+                            INSERT INTO raw_stock (ticker, company, sector, market_date, stock_info)
+                            VALUES (%s, %s, %s, %s, %s)
                             """, (
                                 data['ticker'],
-                                data['price'],
-                                data['published_at']
+                                data['company'],
+                                data['sector'],
+                                data['market_date'],
+                                json.dumps(data['stock_info'])
+                            ))
+                
+            elif topic == 'current_crypto':
+                cur.execute("""
+                            INSERT INTO raw_crypto (symbol, crypto, category, market_date, crypto_info)
+                            VALUES (%s, %s, %s, %s, %s)
+                            """, (
+                                data['symbol'],
+                                data['crypto'],
+                                data['category'],
+                                data['market_date'],
+                                json.dumps(data['crypto_info'])
                             ))
 
             conn.commit()
 
         except Exception as e:
-            log.error(f"Could not consume the data: {e}")
-            raise
+            log.error(f"Insert failed (topic={topic}): {e}")
+            conn.rollback()
 
 if __name__ == "__main__":
     consume_data()

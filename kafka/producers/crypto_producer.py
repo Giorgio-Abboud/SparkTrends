@@ -41,16 +41,19 @@ def process_crypto_symbol(symbol, crypto, category, topic, producer):
     log.info(f"Fetching stocks for {symbol} ({crypto}) in the {category} sector")
     quotes = stream_stocks_for_symbol(symbol)
 
-    for date, quote in quotes.items():
+    for market_date, quote in quotes.items():
         # Attaching extra metadata to more easilty filter and search through
-        quote["symbol"] = symbol
-        quote["crypto"] = crypto
-        quote["category"] = category
-        quote["date"] = date  # Already present in the key but easier to process as a value
+        message = {
+            "symbol": symbol,
+            "crypto": crypto,
+            "category": category,
+            "market_date": market_date,
+            "crypto_info": quote
+        }
 
-        log.info(f"Sending {symbol} to {topic} topic for quote on {date}")
+        log.info(f"Sending {symbol} to {topic} topic for quote on {market_date}")
 
-        producer.send(topic, value=quote)\
+        producer.send(topic, value=message)\
             .add_callback(successful_send)\
             .add_errback(send_error)
         

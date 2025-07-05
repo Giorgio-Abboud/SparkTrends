@@ -54,6 +54,8 @@ else:
 # This lets us dynamically change ports, hostnames, and volume names for either developer or production mode
 dev_mode = input("Is this for development? (y/n): ").lower() == "y"
 
+env_file_path = ".env.production" if not dev_mode else ".env"
+
 # Dynamically assign different volume names to allow data isolation between dev DB and prod DB
 pg_volume_name = 'pg_data_dev' if dev_mode else 'pg_data_prod'
 kafka_volume_name = 'kafka_data_dev' if dev_mode else 'kafka_data_prod'
@@ -65,10 +67,8 @@ kafka_volume_name = 'kafka_data_dev' if dev_mode else 'kafka_data_prod'
 
 # Define the PostgreSQL service spec
 postgres_service = {
-    'image': 'cgr.dev/chainguard/postgres:latest',  # Secure and minimal Postgres image by Chainguard
+    'image': 'postgres:latest',
     'container_name': 'market-postgres',  # Name to easily reference the container
-
-    'restart': 'unless-stopped',  # This ensures Postgres auto-restarts if it crashes or after a reboot
 
     # Environment variables tell Postgres what user, password and DB to create
     # Values like ${POSTGRES_USER} are read from a local .env file (will not be publicly available)
@@ -90,7 +90,16 @@ postgres_service = {
     ],
 
     # Assign the Postgres service to the custom network for inter-container communication
-    'networks': ['sparktrends_net']
+    'networks': ['sparktrends_net'],
+
+    'healthcheck': {
+        'test': ["CMD", "pg_isready", "-h", "localhost", "-p", "5432", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"],
+        'interval': '10s',
+        'timeout': '5s',
+        'retries': 5
+    },
+
+    'env_file': env_file_path
 }
 
 # In dev mode the internal container port 5432 is exposed to the host so local apps connect to Postgres
@@ -152,6 +161,9 @@ kafka_service = {
         # Ensure that every topic is manually created
         'KAFKA_AUTO_CREATE_TOPICS_ENABLE': "false",
 
+        # Add a cluster ID to run KRaft mode without controller disconnects
+        'CLUSTER_ID' : "n3f038IOQDyaa7MzmFzAdw",
+
         # Kafka’s internal storage location for logs, metadata, and more
         'KAFKA_LOG_DIRS': '/var/lib/kafka/data'
     },
@@ -177,8 +189,6 @@ if dev_mode:
 
     # Expose Kafka’s port 9092 to the host like for local Python scripts
     kafka_service['ports'] = ['9092:9092']
-
-env_file_path = ".env.production" if not dev_mode else ".env"
 
 
 # ----------------------------------------
@@ -233,7 +243,39 @@ producer_utility_service = {
 
 
 # ----------------------------------------
-# V. Generate the yml file
+# V. Create the producer orchestration service
+# ----------------------------------------
+
+# Container to run the consumer file to contantly read data from the broker
+consumer_utility_service = {
+    'build': {
+        'context': '.'
+    },
+    'container_name': 'consumer',
+    
+    'restart': 'on-failure',  # Retry only on crashes
+
+    'command': ["python", "kafka/consumers/consumer.py"],
+
+    # Ensure this waits until Kafka passes its healthcheck
+    'depends_on': {
+        'postgres': {
+            'condition': 'service_healthy'
+        },
+        'kafka': {
+            'condition': 'service_healthy'
+        },
+        'topic_creator': {
+            'condition': 'service_completed_successfully'
+        }
+    },
+    'networks': ['sparktrends_net'],  # Attach to the same Docker network
+    'env_file': env_file_path  # Load secrets like NEWS_API_KEY into the container
+}
+
+
+# ----------------------------------------
+# VI. Generate the yml file
 # ----------------------------------------
 
 # Assemble docker-compose content which includes both services and their named volumes
@@ -242,7 +284,8 @@ compose_config = {
         'postgres': postgres_service, # Include the Postgres service
         'kafka': kafka_service, # Include the Kafka service
         'topic_creator': topic_creator_service,
-        'orchestrator': producer_utility_service
+        'orchestrator': producer_utility_service,
+        'consumer': consumer_utility_service
     },
     'volumes': {
         pg_volume_name: {}, # Register the Postgres volume
