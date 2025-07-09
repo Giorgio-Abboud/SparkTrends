@@ -59,13 +59,14 @@ The diagram will be orchestrated by Apache Airflow, which will run these tasks d
 
 ### **Phase 1: Infrastructure & Kafka (In Progress)**
 - `init_project.py` generates `.env`, `.env.example`, `docker-compose.yml`, and `requirements.txt`.
-- Set up PostgreSQL and Kafka using container images, including **Chainguard secure container images**.
+- Set up Python, PostgreSQL and Kafka using container images.
 - Volume persistence and environment-aware Docker configs.
+- Initialized PostgreSQL tables and columns for data organization.
 - Compile json files containing essential data needed for API calls.
 - Centralized topic creator file to eliminate redundant code.
 - Centralized producer file to execute producers and consumers.
 - Kafka Producer ingests formatted news, stock and crypto data from an API.
-- Kafka consumer stores parsed records in PostgreSQL [Coming Soon]
+- Kafka consumer stores parsed records in PostgreSQL
 
 
 ## Future Works In Progress ⚙️🚧
