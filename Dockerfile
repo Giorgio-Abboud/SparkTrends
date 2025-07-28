@@ -16,3 +16,4 @@ COPY kafka/           ./kafka/
 COPY kafka/producers/ ./producers/
 COPY kafka/consumers/ ./consumers/
 COPY tracked_data/    ./tracked_data/
+COPY spark/           ./spark/

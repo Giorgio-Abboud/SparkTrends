@@ -1,6 +1,4 @@
-import os
-import logging
-import requests
+import os, logging
 from dotenv import load_dotenv
 
 load_dotenv()  # Later change to dynamically pick the correct environment
@@ -17,45 +15,72 @@ ALPHA_API_KEY = os.environ["ALPHA_API_KEY"]
 # -----
 
 # Fetch the crypto values that contain a specific symbol
-def stream_stocks_for_symbol(symbol):
+async def batch_crypto_quote(symbol, session):
     # Build the url to make the correct API call (Market will be in USD) (Daily Cryptocurrencies)
     url = f"https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_DAILY&symbol={symbol}&market=USD&apikey={ALPHA_API_KEY}"
 
-    # Error handling in case of a bad GET request
+    # Will fetch today's crypto data using the API's "Last Refreshed" timestamp
     try:
-        response = requests.get(url)
-        if response.status_code == 200:  # Ensuring that the request was successful
-            return response.json().get("Time Series (Digital Currency Daily)", {})
-        else:
-            log.error(f"Unsuccessful response for {symbol}: {response.status_code}")
+        async with session.get(url) as response:
+            if response.status != 200:
+                log.error(f"Crypto API bad status for {symbol}: {response.status}")
+                return {}, ""
+            
+            raw = await response.json()  # Retreive all the data for now
+
+        # Extract the last refreshed date (today's date according to the API)
+        last_ref = raw.get("Meta Data", {}).get("6. Last Refreshed", "")
+        date_key = last_ref.split(" ")[0]  # Remove the hours, minutes, seconds and just get the date
+
+        # Get today's payload
+        quotes = raw.get("Time Series (Digital Currency Daily)", {})
+        today_quote = quotes.get(date_key, {})
+
+        if not today_quote:
+            log.warning(f"No series data for {symbol} on {date_key}")
+        return today_quote, date_key
+
     except Exception as e:
         log.error(f"Failed fetching crypto data for {symbol}: {e}")
-
-    return {}  # Return an empty list in case an error was caught
+        return {}, ""  # Return an empty list in case an error was caught
 
 # -----
 
-# Pushing the stock quotes dictionaries to the broker
-def process_crypto_symbol(symbol, crypto, category, topic, producer):
+# Pushing the crypto quotes dictionaries to the broker
+async def publish_crypto_quote(symbol, name, sector, topic, producer, session):
 
-    log.info(f"Fetching stocks for {symbol} ({crypto}) in the {category} sector")
-    quotes = stream_stocks_for_symbol(symbol)
+    log.info(f"Fetching crypto {symbol} ({name}) in {sector}")
+    quote, date_key = await batch_crypto_quote(symbol, session)
 
-    for market_date, quote in quotes.items():
-        # Attaching extra metadata to more easilty filter and search through
-        message = {
-            "symbol": symbol,
-            "crypto": crypto,
-            "category": category,
-            "market_date": market_date,
-            "crypto_info": quote
-        }
+    if not quote:
+        return
 
-        log.info(f"Sending {symbol} to {topic} topic for quote on {market_date}")
+    # Clean the strings into a OHLCV dictionary
+    quote = {
+        "open": float(quote["1. open"]),
+        "high": float(quote["2. high"]),
+        "low": float(quote["3. low"]),
+        "close": float(quote["4. close"]),
+        "volume": float(quote["5. volume"])
+    }
+    
+    # Attaching extra metadata to more easilty filter and search through
+    message = {
+        "symbol": symbol,
+        "name": name,
+        "sector": sector,
+        "market_date": date_key,
+        "crypto_info": quote
+    }
 
-        producer.send(topic, value=message)\
-            .add_callback(successful_send)\
-            .add_errback(send_error)
+    log.info(f"Sent {symbol} to {topic}")
+
+    # Non-blocking send with explicit callback handling
+    try:
+        record_metadata = await producer.send_and_wait(topic, message)
+        successful_send(record_metadata)
+    except Exception as excp:
+        send_error(excp)
         
 # -----
 

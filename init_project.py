@@ -278,6 +278,12 @@ consumer_utility_service = {
 # VI. Generate the yml file
 # ----------------------------------------
 
+
+
+# ----------------------------------------
+# VII. Generate the yml file
+# ----------------------------------------
+
 # Assemble docker-compose content which includes both services and their named volumes
 compose_config = {
     'services': {

@@ -17,10 +17,10 @@ ALPHA_API_KEY = os.environ["ALPHA_API_KEY"]
 
 # -----
 
-# Fetch the news articles that contain a specific ticker
-def stream_news_for_ticker(ticker):
+# Fetch the news articles that contain a specific symbol
+def batch_news(symbol):
     # Build the url to make the correct API call
-    url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={ALPHA_API_KEY}"
+    url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&symbols={symbol}&apikey={ALPHA_API_KEY}"
 
     # Error handling in case of a bad GET request
     try:
@@ -28,31 +28,31 @@ def stream_news_for_ticker(ticker):
         if response.status_code == 200:  # Ensuring that the request was successful
             return response.json().get("feed", [])
         else:
-            log.error(f"Unsuccessful response for {ticker}: {response.status_code}")
+            log.error(f"Unsuccessful response for {symbol}: {response.status_code}")
     except Exception as e:
-        log.error(f"Failed fetching news for {ticker}: {e}")
+        log.error(f"Failed fetching news for {symbol}: {e}")
 
     return []  # Return an empty list in case an error was caught
 
 # -----
 
 # Pushing the news article dictionaries to the broker
-def process_news_ticker(ticker, company, sector, topic, producer):
+def publish_news(symbol, company, sector, topic, producer):
 
-    log.info(f"Fetching news for {ticker} ({company}) in the {sector} sector")
-    articles = stream_news_for_ticker(ticker)
+    log.info(f"Fetching news for {symbol} ({company}) in the {sector} sector")
+    articles = batch_news(symbol)
 
     for article in articles:
         # Attaching extra metadata to more easilty filter and search through
         message = {
-            "ticker" : ticker,
+            "symbol" : symbol,
             "company": company,
             "sector": sector,
             "time_published": article['time_published'],
             "news_info": article
         }
 
-        log.info(f"Sending {ticker} to {topic} topic for article: {article['title'][:40]}")  # See 40 characters of the article being sent
+        log.info(f"Sending {symbol} to {topic} topic for article: {article['title'][:40]}")  # See 40 characters of the article being sent
 
         producer.send(topic, value=message)\
             .add_callback(successful_send)\

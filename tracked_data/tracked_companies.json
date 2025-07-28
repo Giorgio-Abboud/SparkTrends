@@ -1,35 +1,35 @@
 {
   "Technology": [
-    { "company": "Apple Inc.", "ticker": "AAPL" }
+    { "name": "Apple Inc.", "symbol": "AAPL" }
   ],
 
   "Finance": [
-    { "company": "JPMorgan Chase & Co.", "ticker": "JPM" }
+    { "name": "JPMorgan Chase & Co.", "symbol": "JPM" }
   ],  
 
   "Consumer": [
-    { "company": "Walmart Inc.", "ticker": "WMT" }
+    { "name": "Walmart Inc.", "symbol": "WMT" }
 
   ],  
 
   "Health Care": [
-    { "company": "Johnson & Johnson", "ticker": "JNJ" }
+    { "name": "Johnson & Johnson", "symbol": "JNJ" }
   ],  
 
   "Industrial": [
-    { "company": "Boeing Company", "ticker": "BA" }
+    { "name": "Boeing Company", "symbol": "BA" }
   ],  
 
   "Real Estate": [
-    { "company": "American Tower Corporation", "ticker": "AMT" }
+    { "name": "American Tower Corporation", "symbol": "AMT" }
   ],  
 
   "Utilities": [
-    { "company": "Duke Energy Corporation", "ticker": "DUK" }
+    { "name": "Duke Energy Corporation", "symbol": "DUK" }
   ],  
 
   "International": [
-    { "company": "Toyota Motor Corporation", "ticker": "TM" }
+    { "name": "Toyota Motor Corporation", "symbol": "TM" }
   ]
 
 }

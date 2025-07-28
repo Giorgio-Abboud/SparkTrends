@@ -1,6 +1,5 @@
-import os
-import logging
-import requests
+import os, logging
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()  # Later change to dynamically pick the correct environment
@@ -11,51 +10,69 @@ load_dotenv()  # Later change to dynamically pick the correct environment
 logging.basicConfig(level=logging.INFO)  # Logs messages with a level of INFO or higher (ignores DEBUG)
 log = logging.getLogger(__name__)  # Retrieves logger instance specific to the current module
 
-# Load the AlphaVantage API key and the Kafka Broker from the env
-ALPHA_API_KEY = os.environ["ALPHA_API_KEY"]
+# Load the FinnHub API key and the Kafka Broker from the env
+FINN_API_KEY = os.environ["FINN_API_KEY"]
 
 # -----
 
-# Fetch the stock market values that contain a specific ticker
-def stream_stocks_for_ticker(ticker):
+# Fetch the stock market values that contain a specific symbol
+async def batch_stock_quote(symbol, session):
     # Build the url to make the correct API call
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&apikey={ALPHA_API_KEY}"
+    url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINN_API_KEY}"
 
     # Error handling in case of a bad GET request
     try:
-        response = requests.get(url)
-        if response.status_code == 200:  # Ensuring that the request was successful
-            return response.json().get("Time Series (Daily)", {})
-        else:
-            log.error(f"Unsuccessful response for {ticker}: {response.status_code}")
-    except Exception as e:
-        log.error(f"Failed fetching stock data for {ticker}: {e}")
+        async with session.get(url) as response:
+            if response.status != 200:  # Ensuring that the request was successful
+                log.error(f"Unsuccessful response for {symbol}: {response.status}")
+                return {}
+            
+            return await response.json()
 
-    return {}  # Return an empty list in case an error was caught
+    except Exception as e:
+        log.error(f"Failed HTTP for {symbol}: {e}")
+        return {}  # Return an empty list in case an error was caught
 
 # -----
 
 # Pushing the stock quotes dictionaries to the broker
-def process_stock_ticker(ticker, company, sector, topic, producer):
+async def publish_stock_quote(symbol, name, sector, industry, topic, producer, session):
 
-    log.info(f"Fetching stocks for {ticker} ({company}) in the {sector} sector")
-    quotes = stream_stocks_for_ticker(ticker)
+    log.info(f"Fetching stocks for {symbol} ({name}) in the {sector} sector")
+    quote = await batch_stock_quote(symbol, session)
 
-    for market_date, quote in quotes.items():
-        # Attaching extra metadata to more easilty filter and search through
-        message = {
-            "ticker": ticker,
-            "company": company,
-            "sector": sector,
-            "market_date": market_date,
-            "stock_info": quote
-        }
+    if not quote:  # If nothing was received due to an error
+        return
 
-        log.info(f"Sending {ticker} to {topic} topic for quote on {market_date}")
+    market_date = str(datetime.fromtimestamp(quote["t"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
 
-        producer.send(topic, value=message)\
-            .add_callback(successful_send)\
-            .add_errback(send_error)
+    # Clean the strings into a OHLC dictionary
+    quote = {
+        "open": float(quote["o"]),
+        "high": float(quote["h"]),
+        "low": float(quote["l"]),
+        "close": float(quote["c"]),
+        "prev_close": float(quote["pc"]),
+        "market_date": market_date
+    }
+
+    # Attaching extra metadata to more easilty filter and search through
+    message = {
+        "symbol": symbol,
+        "name": name,
+        "sector": sector,
+        "industry": industry,
+        "stock_info": quote
+    }
+
+    log.info(f"Sent {symbol} to {topic}")
+
+    # Non-blocking send with explicit callback handling
+    try:
+        record_metadata = await producer.send_and_wait(topic, message)
+        successful_send(record_metadata)
+    except Exception as excp:
+        send_error(excp)
         
 # -----
 
@@ -65,4 +82,4 @@ def successful_send(record_metadata):
 
 # Called when there is an error sending a message to Kafka
 def send_error(excp):
-    log.error('Failed to send message to Kafka: ', exc_info=excp)
+    log.error("Failed to send message to Kafka: ", exc_info=excp)

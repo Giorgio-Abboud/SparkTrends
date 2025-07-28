@@ -177,4 +177,5 @@ cython_debug/
 .vscode/
 *.db
 docker-compose.override.yml
+config.yml
 logs/
