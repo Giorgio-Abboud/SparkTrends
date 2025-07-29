@@ -113,22 +113,10 @@ def predict_returns(df, entity, jdbc_url, model_path, horizon, days):
     pred_df = model.transform(df)
 
     # Determine columns and target table based on entity type
-    if entity == "stock":
-        sym_col = "ticker"
-        name_col = "company"
-        cat_col = "sector"
-        target_table = "processed_stock"
-    else:
-        sym_col = "symbol"
-        name_col = "crypto"
-        cat_col = "category"
-        target_table = "processed_crypto"
-
-    # Computing the window function for the volatility
-    sym_col = "ticker" if entity == "stock" else "symbol"
+    target_table = "processed_stock" if entity == "stock" else "processed_crypto"
 
     w = (
-        Window.partitionBy(sym_col)
+        Window.partitionBy("symbol")
             .orderBy("market_date")
             .rowBetween(-days + 1, 0)
     )
@@ -149,9 +137,9 @@ def predict_returns(df, entity, jdbc_url, model_path, horizon, days):
 
     # Select the column we want to write to
     output_df = res_df.select(
-        sym_col,
-        name_col,
-        cat_col,
+        "symbol",
+        "name",
+        "category",
         "market_date",
         "open",
         "high",

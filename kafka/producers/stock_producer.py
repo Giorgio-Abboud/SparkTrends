@@ -1,6 +1,7 @@
 import os, logging
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+import websocket
 
 load_dotenv()  # Later change to dynamically pick the correct environment
 
@@ -42,6 +43,7 @@ async def publish_stock_quote(symbol, name, sector, industry, topic, producer, s
     quote = await batch_stock_quote(symbol, session)
 
     if not quote:  # If nothing was received due to an error
+        log.warning(f"No stocks for {symbol}")
         return
 
     market_date = str(datetime.fromtimestamp(quote["t"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))

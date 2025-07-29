@@ -37,7 +37,7 @@ async def batch_crypto_quote(symbol, session):
         today_quote = quotes.get(date_key, {})
 
         if not today_quote:
-            log.warning(f"No series data for {symbol} on {date_key}")
+            log.warning(f"No quote data for {symbol} on {date_key}")
         return today_quote, date_key
 
     except Exception as e:
@@ -53,6 +53,7 @@ async def publish_crypto_quote(symbol, name, sector, topic, producer, session):
     quote, date_key = await batch_crypto_quote(symbol, session)
 
     if not quote:
+        log.warning(f"No crypto for {symbol}")
         return
 
     # Clean the strings into a OHLCV dictionary

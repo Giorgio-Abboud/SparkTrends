@@ -1,6 +1,5 @@
-import os
-import logging
-import requests
+import os, logging
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()  # Later change to dynamically pick the correct environment
@@ -18,45 +17,63 @@ ALPHA_API_KEY = os.environ["ALPHA_API_KEY"]
 # -----
 
 # Fetch the news articles that contain a specific symbol
-def batch_news(symbol):
+async def batch_news(symbol, session):
     # Build the url to make the correct API call
     url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&symbols={symbol}&apikey={ALPHA_API_KEY}"
 
-    # Error handling in case of a bad GET request
+    # Will fetch today's crypto data using the API's "Last Refreshed" timestamp
+    # Fetches the news-sentiment feed and returns the list of articles or [] on error
     try:
-        response = requests.get(url)
-        if response.status_code == 200:  # Ensuring that the request was successful
-            return response.json().get("feed", [])
-        else:
-            log.error(f"Unsuccessful response for {symbol}: {response.status_code}")
-    except Exception as e:
-        log.error(f"Failed fetching news for {symbol}: {e}")
+        async with session.get(url) as response:
+            if response.status != 200:
+                log.error(f"News API bad status for {symbol}: {response.status}")
+                return []
+            
+            raw = await response.json()  # Retreive all the data for now
 
-    return []  # Return an empty list in case an error was caught
+    except Exception as e:
+        log.error(f"Failed fetching article data for {symbol}: {e}")
+        return []  # Return an empty list in case an error was caught
+
+    # Get today's payload
+    articles = raw.get("feed", [])
+    date_key = datetime.now(timezone.utc).strftime("%Y%m%d")
+
+    today_articles = [
+        art for art in articles
+        if art.get("time_published", "").startswith(date_key)
+    ]
+
+    if not today_articles:
+        log.warning(f"No article data for {symbol} on {date_key}")
+    return today_articles
 
 # -----
 
 # Pushing the news article dictionaries to the broker
-def publish_news(symbol, company, sector, topic, producer):
+async def publish_news(symbol, name, sector, topic, producer):
 
-    log.info(f"Fetching news for {symbol} ({company}) in the {sector} sector")
-    articles = batch_news(symbol)
+    log.info(f"Fetching news for {symbol} ({name}) in the {sector} sector")
+    articles = await batch_news(symbol)
 
     for article in articles:
         # Attaching extra metadata to more easilty filter and search through
         message = {
             "symbol" : symbol,
-            "company": company,
+            "name": name,
             "sector": sector,
             "time_published": article['time_published'],
             "news_info": article
         }
 
-        log.info(f"Sending {symbol} to {topic} topic for article: {article['title'][:40]}")  # See 40 characters of the article being sent
+        log.info(f"Sending article for {symbol}: {article['title'][:40]}…")  # See 40 characters of the article being sent
 
-        producer.send(topic, value=message)\
-            .add_callback(successful_send)\
-            .add_errback(send_error)
+        # Non-blocking send with explicit callback handling
+        try:
+            record_metadata = await producer.send_and_wait(topic, message)
+            successful_send(record_metadata)
+        except Exception as excp:
+            send_error(excp)
         
 # -----
 
