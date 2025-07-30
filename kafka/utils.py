@@ -1,5 +1,4 @@
 from producers import news_producer, stock_producer, crypto_producer
-# from consumers import consumer
 import os, json, csv, logging, asyncio, aiohttp
 from aiokafka import AIOKafkaProducer
 from dotenv import load_dotenv

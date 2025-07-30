@@ -5,7 +5,6 @@ import argparse
 from dotenv import load_dotenv
 from pyspark.sql import SparkSession
 from utils.financial_utils import read_and_flatten, compute_returns, compute_volatility
-from utils.prediction_utils import train_model, predict_returns
 
 # Setup a logger
 logging.basicConfig(level=logging.INFO)
@@ -58,9 +57,6 @@ def run_streaming_etl(spark):
             # Compute volatility
             vol_df = compute_volatility(ret_df, entity, days)
 
-            # Compute the predicted close, return and volatility
-            predict_returns(vol_df, entity, jdbc_url, model_path, horizon, days)
-
         # Start a streaming query that continuously pulls from Kafka
         query = (
             stream_df
@@ -79,18 +75,6 @@ def run_streaming_etl(spark):
     # Await for stream query termination
     spark.streams.awaitAnyTermination()
 
-
-# Train the machine learning model and save it
-def run_ml_pipeline(spark):
-    jdbc_url = config["jdbc"]["url"]
-    model_path = config["model"]["model_path"]
-    csv_path = config["model"]["csv_path"]
-    horizon = config["window"]["horizon_days"]
-    test_decimal = config["model"]["test_dec"]
-    seed = config["model"]["seed"]
-
-    # Pass the metrics to the function
-    train_model(spark, csv_path, model_path, seed, jdbc_url, horizon, test_decimal)
 
 
 # Command line interface entry point
@@ -116,10 +100,6 @@ def main():
     # Run the ETL streaming mode
     if args.mode == "stream":
         run_streaming_etl(spark)
-
-    # Run the ML model training mode
-    elif args.mode == "train":
-        run_ml_pipeline(spark)
 
 
 if __name__ == "__main__":
