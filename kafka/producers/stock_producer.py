@@ -1,7 +1,8 @@
-import os, logging
+import os, logging, csv, json, aiohttp, asyncio
+from aiokafka import AIOKafkaProducer
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-import websocket
+from websockets import connect
 
 load_dotenv()  # Later change to dynamically pick the correct environment
 
@@ -11,77 +12,112 @@ load_dotenv()  # Later change to dynamically pick the correct environment
 logging.basicConfig(level=logging.INFO)  # Logs messages with a level of INFO or higher (ignores DEBUG)
 log = logging.getLogger(__name__)  # Retrieves logger instance specific to the current module
 
-# Load the FinnHub API key and the Kafka Broker from the env
+# Load the FinnHub and Twelve Data API keys
 FINN_API_KEY = os.environ["FINN_API_KEY"]
+TWELVE_API_KEY = os.environ["TWELVE_API_KEY"]
+TWELVE_URL = "https://api.twelvedata.com/time_series"
 
 # -----
 
-# Fetch the stock market values that contain a specific symbol
-async def batch_stock_quote(symbol, session):
-    # Build the url to make the correct API call
-    url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINN_API_KEY}"
+# Subscribe to Finnhub WebSocket for a list of symbols and publish each tick
+async def stream_stock(symbols: list[str], producer: AIOKafkaProducer, topic: str):
+    # Connect to the websocket
+    async with connect(f"wss://ws.finnhub.io?token={FINN_API_KEY}") as ws:
+        # Subscribe to all symbols in the list
+        for sym in symbols:
+            await ws.send(json.dumps({"type": "subscribe", "symbol": sym}))
+            log.info(f"Subscribed to {sym}")
 
-    # Error handling in case of a bad GET request
-    try:
-        async with session.get(url) as response:
-            if response.status != 200:  # Ensuring that the request was successful
-                log.error(f"Unsuccessful response for {symbol}: {response.status}")
-                return {}
-            
-            return await response.json()
-
-    except Exception as e:
-        log.error(f"Failed HTTP for {symbol}: {e}")
-        return {}  # Return an empty list in case an error was caught
+        # Send the data received to the Kafka broker
+        async for msg in ws:
+            payload = json.load(msg)
+            # Store the trades in a list and iterate
+            for trade in payload.get("data", []):
+                # Fix the timestamp (in milisec so divide by 1k)
+                ts = datetime.fromtimestamp(trade["t"] / 1000, tz=timezone.utc)
+                # Frame the record in a dictionary
+                record = {
+                    "symbol": trade["s"],
+                    "price": trade["p"],
+                    "volume": trade["v"],
+                    "timestamp": ts
+                }
+                # Try sending it to the broker
+                try:
+                    await producer.send_and_wait(topic, record)
+                    log.info(f"Streamed {record['symbol']} at {record['ts']}")
+                except Exception as e:
+                    log.error(f"Failed to stream tick for {record['symbol']}: {e}")
 
 # -----
 
-# Pushing the stock quotes dictionaries to the broker
-async def publish_stock_quote(symbol, name, sector, industry, topic, producer, session):
-
-    log.info(f"Fetching stocks for {symbol} ({name}) in the {sector} sector")
-    quote = await batch_stock_quote(symbol, session)
-
-    if not quote:  # If nothing was received due to an error
-        log.warning(f"No stocks for {symbol}")
-        return
-
-    market_date = str(datetime.fromtimestamp(quote["t"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
-
-    # Clean the strings into a OHLC dictionary
-    quote = {
-        "open": float(quote["o"]),
-        "high": float(quote["h"]),
-        "low": float(quote["l"]),
-        "close": float(quote["c"]),
-        "prev_close": float(quote["pc"]),
-        "market_date": market_date
-    }
-
-    # Attaching extra metadata to more easilty filter and search through
-    message = {
+# Fetch OHLCV data from Twelve Data API for the passed symbols
+async def fetch_ohlcv_td(symbol: str, session: aiohttp.ClientSession) -> dict:
+    # Fetch 1-min OHLCV bars from Twelve Data
+    params = {
         "symbol": symbol,
-        "name": name,
-        "sector": sector,
-        "industry": industry,
-        "stock_info": quote
+        "interval": "1min",
+        "outputsize": 1,
+        "apikey": TWELVE_API_KEY
     }
+    # Return an output to batch_stock
+    async with session.get(TWELVE_URL, params=params) as response:
+        response.raise_for_status()
+        return await response.json()
+    
+# Fetch the stock data from fetch_ohlcv_td, format and send to the Kafka broker
+async def batch_stock(symbols: list[str], producer: AIOKafkaProducer,
+                      session: aiohttp.ClientSession, topic: str, rate: float):
+    # Call Twelve Data using the provided symbols
+    for sym in symbols:
+        try:
+            # Call and extract the stock data
+            data = await fetch_ohlcv_td(sym, session)
+            quote = data.get("values", [])
 
-    log.info(f"Sent {symbol} to {topic}")
+            # For loop in case we want to increase the output size later on
+            for q in quote:
+                # Fix the timestamp
+                ts = datetime.isoformat(q["datetime"])
+                # Create a record out of the values
+                record = {
+                    "symbol": sym,
+                    "open": float(q["open"]),
+                    "high": float(q["high"]),
+                    "low": float(q["low"]),
+                    "close": float(q["close"]),
+                    "volume": float(q["volume"]),
+                    "timestamp": ts.isoformat()
+                }
+                # Send to the producer
+                await producer.send_and_wait(topic, record)
+            log.info(f"Batch fetch complete for {sym}")
 
-    # Non-blocking send with explicit callback handling
-    try:
-        record_metadata = await producer.send_and_wait(topic, message)
-        successful_send(record_metadata)
-    except Exception as excp:
-        send_error(excp)
-        
+        except Exception as e:
+            log.error(f"Batch failed for {sym}: {e}")
+
+        # Respect Twelve Data's 8 API request per minute limit
+        await asyncio.sleep(rate)
+
 # -----
 
-# Called when a message is successfully sent to Kafka
-def successful_send(record_metadata):
-    print(f"Sent to {record_metadata.topic} | Partition: {record_metadata.partition} | Offset: {record_metadata.offset}")
+# Read CSV of company metadata and publish each row to Kafka for downstream joins
+async def stock_meta(producer: AIOKafkaProducer, file: str, topic: str):
+    with open(file, "r", newline="", encoding="utf-8") as f:
+        # Create the reader object
+        reader = csv.DictReader(f)
+        # Go through each row to gather the stock meta data
+        for row in reader:
+            try:
+                # Store a dict full of the values with the correct column name and send
+                record = {
+                    "symbol": row["Symbol"],
+                    "name": row["Name"],
+                    "sector": row["Sector"],
+                    "industry": row["Industry"]
+                }
+                await producer.send_and_wait(topic, record)
+                log.info(f"Published metadata for {record['symbol']}")
 
-# Called when there is an error sending a message to Kafka
-def send_error(excp):
-    log.error("Failed to send message to Kafka: ", exc_info=excp)
+            except Exception as e:
+                log.error(f"Failed to publish metadata for {record['symbol']}: {e}")
