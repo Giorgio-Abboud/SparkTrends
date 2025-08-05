@@ -3,6 +3,7 @@ from aiokafka import AIOKafkaProducer
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from websockets import connect
+from zoneinfo import ZoneInfo
 
 load_dotenv()  # Later change to dynamically pick the correct environment
 
@@ -40,7 +41,7 @@ async def stream_stock(symbols: list[str], producer: AIOKafkaProducer, topic: st
                     "symbol": trade["s"],
                     "price": trade["p"],
                     "volume": trade["v"],
-                    "timestamp": ts
+                    "timestamp": ts.isoformat()
                 }
                 # Try sending it to the broker
                 try:
@@ -57,7 +58,7 @@ async def fetch_ohlcv_td(symbol: str, session: aiohttp.ClientSession) -> dict:
     params = {
         "symbol": symbol,
         "interval": "1min",
-        "outputsize": 1,
+        "outputsize": 25,
         "apikey": TWELVE_API_KEY
     }
     # Return an output to batch_stock
@@ -73,12 +74,13 @@ async def batch_stock(symbols: list[str], producer: AIOKafkaProducer,
         try:
             # Call and extract the stock data
             data = await fetch_ohlcv_td(sym, session)
-            quote = data.get("values", [])
+            quotes = data.get("values", [])
 
             # For loop in case we want to increase the output size later on
-            for q in quote:
-                # Fix the timestamp
-                ts = datetime.isoformat(q["datetime"])
+            for q in quotes:
+                # Fix the timestamp to UTC
+                dt_naive = datetime.strptime(q["datetime"], "%Y-%m-%d %H:%M:%S")
+                dt_utc = dt_naive.replace(tzinfo=ZoneInfo("America/New_York")).astimezone(timezone.utc)
                 # Create a record out of the values
                 record = {
                     "symbol": sym,
@@ -87,7 +89,7 @@ async def batch_stock(symbols: list[str], producer: AIOKafkaProducer,
                     "low": float(q["low"]),
                     "close": float(q["close"]),
                     "volume": float(q["volume"]),
-                    "timestamp": ts.isoformat()
+                    "timestamp": dt_utc.isoformat()
                 }
                 # Send to the producer
                 await producer.send_and_wait(topic, record)
