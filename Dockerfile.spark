@@ -1,0 +1,24 @@
+FROM bitnami/spark:4.0.0-debian-12-r18
+
+# Install curl
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+# Remove any pre-bundled Kafka connector bits to avoid version clashes
+RUN rm -f $SPARK_HOME/jars/spark-sql-kafka-0-10_* \
+    && rm -f $SPARK_HOME/jars/spark-token-provider-kafka-0-10_* \
+    && rm -f $SPARK_HOME/jars/kafka-clients-* \
+    && rm -f $SPARK_HOME/jars/commons-pool2-*.jar
+
+# Pull only the exact versions we need
+RUN curl -fsSL -o $SPARK_HOME/jars/commons-pool2-2.12.0.jar \
+      https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.0/commons-pool2-2.12.0.jar && \
+    curl -fsSL -o $SPARK_HOME/jars/kafka-clients-3.6.1.jar \
+      https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.6.1/kafka-clients-3.6.1.jar && \
+    curl -fsSL -o $SPARK_HOME/jars/spark-sql-kafka-0-10_2.13-4.0.0.jar \
+      https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.13/4.0.0/spark-sql-kafka-0-10_2.13-4.0.0.jar && \
+    curl -fsSL -o $SPARK_HOME/jars/spark-token-provider-kafka-0-10_2.13-4.0.0.jar \
+      https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.13/4.0.0/spark-token-provider-kafka-0-10_2.13-4.0.0.jar
+
+RUN curl -fsSL -o $SPARK_HOME/jars/postgresql-42.7.3.jar \
+    https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar
