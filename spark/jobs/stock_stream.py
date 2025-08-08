@@ -1,7 +1,7 @@
 import os, requests, logging
 from pyspark.sql import SparkSession, DataFrame, Window, functions as F
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType, ArrayType
-from utils import write_stock_bars, write_stock_metrics, config
+from spark.utilities import write_stock_bars, write_stock_metrics, config
 
 from dotenv import load_dotenv
 from pyspark.sql import SparkSession
@@ -29,7 +29,7 @@ trade_schema = StructType([
 
 # Send notifications to slack if any anomalies are detected
 def send_slack_alert(message: str) -> None:
-    response = requests.post(SLACK_WEBHOOK, message)
+    response = requests.post(SLACK_WEBHOOK, json={"text": message})
     response.raise_for_status()
 
 
@@ -77,23 +77,23 @@ def process_computation(spark: SparkSession, bar_df: DataFrame) -> DataFrame:
             )
             .withColumn(
                 "is_anomaly",
-                F.abs(F.col("close") - F.col("wvap_5")) > ANOMALY_THRESHOLD * F.col("vol_5")
+                F.abs(F.col("close") - F.col("vwap_5")) > ANOMALY_THRESHOLD * F.col("vol_5")
             )
     )
 
     # Gather all recent messages to check for anomalies
-    lastest_ts_per_symbol = (
+    latest_ts_per_symbol = (
         bar_df.groupBy("symbol")
               .agg(F.max("timestamp").alias("latest"))
     )
 
     new_metrics = (
         metrics.join(
-            metrics,
-            (metrics.symbol == lastest_ts_per_symbol.symbol) &
-            (metrics.timestamp == lastest_ts_per_symbol.timestamp),
+            latest_ts_per_symbol,
+            (metrics.symbol == latest_ts_per_symbol.symbol) &
+            (metrics.timestamp == latest_ts_per_symbol.latest),
             "inner"
-        ).select(metrics[*])
+        ).select(*metrics)
     )
 
     return new_metrics
@@ -147,7 +147,7 @@ def run_minute_stream_metric(spark: SparkSession, topic: str) -> None:
         raw_trades
             # Group by the symbols in a 1 minute window
             .groupBy(
-                Window(F.col("timestamp"), "1 minute"),
+                F.window(F.col("timestamp"), "1 minute"),
                 F.col("symbol")
             )
             # Aggregate them to add the OHLCV values

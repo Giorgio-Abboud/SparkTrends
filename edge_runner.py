@@ -1,14 +1,16 @@
 import argparse, asyncio, csv, aiohttp, logging
-from kafka.producers.stock_producer import stream_stock, batch_stock, stock_meta
-from kafka.utils import connect_to_kafka, create_topics
+from apache_kafka.producers.stock_producer import stream_stock, batch_stock, stock_meta
+from apache_kafka.utilities import connect_to_kafka, create_topics
 from kafka.admin import NewTopic
-from spark.utils import create_spark_session
+from spark.utilities import create_spark_session
 from spark.jobs.stock_batch import load_batch_ohlcv, load_batch_meta
 from spark.jobs.stock_stream import run_minute_stream_metric
+from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
+load_dotenv()
 
 # Track all of the symbols in our CSV file
 def load_symbols(path):
@@ -33,7 +35,7 @@ async def main():
     args  = p.parse_args()
 
     # Create a producer
-    producer = await connect_to_kafka(5, 5)
+    producer = await connect_to_kafka(6, 5)
     spark = create_spark_session()
 
     # Create the topics with retry logic

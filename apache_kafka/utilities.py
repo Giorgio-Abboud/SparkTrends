@@ -18,7 +18,7 @@ BOOTSTRAP_SERVER = os.environ["KAFKA_BROKER"]
 # -----
 
 # Function to attempt connecting to Kafka with retry logic (in case the producer runs before the broker is up)
-async def connect_to_kafka(max_retries=5, delay=5):
+async def connect_to_kafka(max_retries=6, delay=10):
     # Tries to connect to kafka 'max_retries' amount of times
     for attempt in range(max_retries):
         try:

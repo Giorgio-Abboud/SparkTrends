@@ -116,6 +116,7 @@ if dev_mode:
 kafka_service = {
     'image': 'apache/kafka:latest',  # Chainguard's secure and minimal Kafka with KRaft image
     'container_name': 'kafka',
+    'env_file': ['.env'],
 
     'restart': 'unless-stopped',  # This ensures Kafka auto-restarts if it crashes or after a reboot
 
@@ -192,96 +193,102 @@ if dev_mode:
 
 
 # ----------------------------------------
-# III. Create the topic service
+# III. Create the Spark services (Master + Worker)
 # ----------------------------------------
 
-# Container ensuring topic creation
-topic_creator_service = {
+spark_master_service = {
+    'container_name': 'spark-master',
     'build': {
-        'context': '.'
+        'context': '.',
+        'dockerfile': 'Dockerfile.spark'
     },
-    'container_name': 'topic_creator',
+    'image': 'custom-spark:4.0.0',
+    'restart': 'unless-stopped',
+    'environment': [
+        'SPARK_MODE=master',
+        'SPARK_RPC_AUTHENTICATION_ENABLED=no',
+        'SPARK_RPC_ENCRYPTION_ENABLED=no',
+        'SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no',
+        'SPARK_SSL_ENABLED=no',
+        'SPARK_USER=spark'
+    ],
+    'healthcheck': {
+        'test': ["CMD", "curl", "-f", "http://localhost:8080"],
+        'interval': '5s',
+        'timeout': '3s',
+        'retries': 3
+    },
+    'volumes': [
+        'spark-logs:/opt/bitnami/spark/logs'
+    ],
+    'env_file': ['.env'],
+    'ports': [
+        '8080:8080',
+        '7077:7077'
+    ],
+    'networks': ['sparktrends_net']
+}
+
+spark_worker_service = {
+    'container_name': 'spark-worker',
+    'build': {
+        'context': '.',
+        'dockerfile': 'Dockerfile.spark'
+    },
+    'image': 'custom-spark:4.0.0',
+    'restart': 'unless-stopped',
+    'depends_on': ['spark-master'],
+    'environment': [
+        'SPARK_MODE=worker',
+        'SPARK_MASTER_URL=spark://spark-master:7077',
+        'SPARK_WORKER_MEMORY=1G',
+        'SPARK_WORKER_CORES=1',
+        'SPARK_RPC_AUTHENTICATION_ENABLED=no',
+        'SPARK_RPC_ENCRYPTION_ENABLED=no',
+        'SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no',
+        'SPARK_SSL_ENABLED=no',
+        'SPARK_USER=spark'
+    ],
+    'env_file': ['.env'],
+    'volumes': [
+        'spark-logs:/opt/bitnami/spark/logs'
+    ],
+    'networks': ['sparktrends_net']
+}
+
+
+# ----------------------------------------
+# IV. Create a runner image
+# ----------------------------------------
+
+# Define the runner service which launches the entire project
+runner_service = {
+    'container_name': 'runner',
+    'build': {
+        'context': '.',
+        'dockerfile': 'Dockerfile.runner'
+    },
     'restart': 'on-failure',
-    'command': ["python", "kafka/topics.py"],
     'depends_on': {
-        'kafka': {
-            'condition': 'service_healthy'
-        }
+        'postgres': {'condition': 'service_healthy'},
+        'kafka': {'condition': 'service_started'},  # add healthcheck if needed
+        'spark-master': {'condition': 'service_healthy'},
+        'spark-worker': {'condition': 'service_started'}
     },
+    'env_file': ['.env'],
+    'command': [
+        'spark-submit',
+        '--master', 'spark://spark-master:7077',
+        '--deploy-mode', 'client',
+        '/app/edge_runner.py',
+        '--mode', 'batch'
+    ],
     'networks': ['sparktrends_net'],
-    'env_file': env_file_path
 }
 
 
 # ----------------------------------------
-# IV. Create the producer orchestration service
-# ----------------------------------------
-
-# Container to run the utility file which feeds data for the producers to make requests
-producer_utility_service = {
-    'build': {
-        'context': '.'
-    },
-    'container_name': 'orchestrator',
-    
-    'restart': 'on-failure',  # Retry only on crashes
-
-    'command': ["python", "kafka/utils.py"],
-
-    # Ensure this waits until Kafka passes its healthcheck
-    'depends_on': {
-        'kafka': {
-            'condition': 'service_healthy'
-        },
-        'topic_creator': {
-            'condition': 'service_completed_successfully'
-        }
-    },
-    'networks': ['sparktrends_net'],  # Attach to the same Docker network
-    'env_file': env_file_path  # Load secrets like NEWS_API_KEY into the container
-}
-
-
-# ----------------------------------------
-# V. Create the producer orchestration service
-# ----------------------------------------
-
-# Container to run the consumer file to contantly read data from the broker
-consumer_utility_service = {
-    'build': {
-        'context': '.'
-    },
-    'container_name': 'consumer',
-    
-    'restart': 'on-failure',  # Retry only on crashes
-
-    'command': ["python", "kafka/consumers/consumer.py"],
-
-    # Ensure this waits until Kafka passes its healthcheck
-    'depends_on': {
-        'postgres': {
-            'condition': 'service_healthy'
-        },
-        'kafka': {
-            'condition': 'service_healthy'
-        },
-        'topic_creator': {
-            'condition': 'service_completed_successfully'
-        }
-    },
-    'networks': ['sparktrends_net'],  # Attach to the same Docker network
-    'env_file': env_file_path  # Load secrets like NEWS_API_KEY into the container
-}
-
-
-# ----------------------------------------
-# VI. Generate the yml file
-# ----------------------------------------
-
-
-
-# ----------------------------------------
-# VII. Generate the yml file
+# V. Generate the yml file
 # ----------------------------------------
 
 # Assemble docker-compose content which includes both services and their named volumes
@@ -289,13 +296,14 @@ compose_config = {
     'services': {
         'postgres': postgres_service, # Include the Postgres service
         'kafka': kafka_service, # Include the Kafka service
-        'topic_creator': topic_creator_service,
-        'orchestrator': producer_utility_service,
-        'consumer': consumer_utility_service
+        'spark-master': spark_master_service,
+        'spark-worker': spark_worker_service,
+        'runner': runner_service
     },
     'volumes': {
         pg_volume_name: {}, # Register the Postgres volume
-        kafka_volume_name: {} # Register the Kafka volume
+        kafka_volume_name: {}, # Register the Kafka volume
+        "spark-logs": {}
     },
     'networks': {
         'sparktrends_net': { # An internal Docker network name

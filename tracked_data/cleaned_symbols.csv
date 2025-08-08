@@ -1,4 +1,54 @@
 Symbol,Name,Sector,Industry
+
+-----
+C,Citigroup Inc. Common Stock,Finance,Major Banks
+CAT,Caterpillar Inc. Common Stock,Industrials,Construction/Ag Equipment/Trucks
+COP,ConocoPhillips Common Stock,Energy,Integrated oil Companies
+CRM,Salesforce Inc. Common Stock,Technology,Computer Software: Prepackaged Software
+CVX,Chevron Corporation Common Stock,Energy,Integrated oil Companies
+DE,Deere & Company Common Stock,Industrials,Industrial Machinery/Components
+DIS,Walt Disney Company (The) Common Stock,Consumer Discretionary,Movies/Entertainment
+EOG,EOG Resources Inc. Common Stock,Energy,Oil & Gas Production
+GD,General Dynamics Corporation Common Stock,Industrials,Aerospace
+GE,General Electric Company Common Stock,Consumer Discretionary,Metal Fabrications
+GS,Goldman Sachs Group Inc. (The) Common Stock,Finance,Investment Bankers/Brokers/Service
+HD,Home Depot Inc. (The) Common Stock,Consumer Discretionary,RETAIL: Building Materials
+IBM,International Business Machines Corporation Common Stock,Technology,EDP Services
+JNJ,Johnson & Johnson Common Stock,Health Care,Biotechnology: Pharmaceutical Preparations
+JPM,JP Morgan Chase & Co. Common Stock,Finance,Major Banks
+KO,Coca-Cola Company (The) Common Stock,Consumer Staples,Beverages (Production/Distribution)
+LLY,Eli Lilly and Company Common Stock,Health Care,Biotechnology: Pharmaceutical Preparations
+LMT,Lockheed Martin Corporation Common Stock,Industrials,Aerospace
+MA,Mastercard Incorporated Common Stock,Consumer Discretionary,Business Services
+MCD,McDonald's Corporation Common Stock,Consumer Discretionary,Restaurants
+MMM,3M Company Common Stock,Industrials,Consumer Electronics/Appliances
+MRK,Merck & Company Inc. Common Stock (new),Health Care,Biotechnology: Pharmaceutical Preparations
+NOC,Northrop Grumman Corporation Common Stock,Technology,Security Systems Services
+ORCL,Oracle Corporation Common Stock,Technology,Computer Software: Prepackaged Software
+PFE,Pfizer Inc. Common Stock,Health Care,Biotechnology: Pharmaceutical Preparations
+PG,Procter & Gamble Company (The) Common Stock,Consumer Discretionary,Package Goods/Cosmetics
+RTX,Raytheon Technologies Corporation Common Stock,Industrials,Military/Government/Technical
+SQ,Block Inc. Class A Common Stock,Technology,Computer Software: Prepackaged Software
+T,AT&T Inc.,Consumer Discretionary,Telecommunications Equipment
+UNH,UnitedHealth Group Incorporated Common Stock (DE),Health Care,Medical Specialities
+V,Visa Inc.,Consumer Discretionary,Business Services
+WMT,Walmart Inc. Common Stock,Consumer Discretionary,Department/Specialty Retail Stores
+XOM,Exxon Mobil Corporation Common Stock,Energy,Oil & Gas Production
+AAPL,Apple Inc. Common Stock,Technology,Computer Manufacturing
+AMZN,Amazon.com Inc. Common Stock,Consumer Discretionary,Catalog/Specialty Distribution
+CMCSA,Comcast Corporation Class A Common Stock,Consumer Discretionary,Telecommunications Equipment
+COST,Costco Wholesale Corporation Common Stock,Consumer Discretionary,Department/Specialty Retail Stores
+GOOGL,Alphabet Inc. Class A Common Stock,Technology,Internet and Information Services
+HON,Honeywell International Inc. Common Stock,Industrials,Consumer Electronics/Appliances
+MSFT,Microsoft Corporation Common Stock,Technology,Computer Software: Prepackaged Software
+NFLX,Netflix Inc. Common Stock,Consumer Discretionary,Movies/Entertainment
+NVDA,NVIDIA Corporation Common Stock,Technology,Semiconductors
+PYPL,PayPal Holdings Inc. Common Stock,Consumer Discretionary,Business Services
+TSLA,Tesla Inc. Common Stock,Consumer Discretionary,Auto Manufacturing
+-----
+
+
+
 A,Agilent Technologies Inc. Common Stock,Industrials,Electrical Products
 AAP,Advance Auto Parts Inc.,Consumer Discretionary,Auto & Home Supply Stores
 AAT,American Assets Trust Inc. Common Stock,Real Estate,Real Estate Investment Trusts

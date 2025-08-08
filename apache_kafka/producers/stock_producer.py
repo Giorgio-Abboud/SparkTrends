@@ -93,7 +93,7 @@ async def batch_stock(symbols: list[str], producer: AIOKafkaProducer,
                 }
                 # Send to the producer
                 await producer.send_and_wait(topic, record)
-            log.info(f"Batch fetch complete for {sym}")
+            log.info(f"Batch fetch of {len(quotes)} quotes complete for {sym}")
 
         except Exception as e:
             log.error(f"Batch failed for {sym}: {e}")

@@ -1,72 +1,98 @@
 # SparkTrends
 
-**SparkTrends** is a **Market Trends Intelligence Platform** that ingests, processes, and analyzes financial market data, including company headlines, stock prices, and cryptocurrency trends, to detect emerging market patterns. It simulates a scalable and real-time pipeline to provide insight, powered by Kafka, Spark Airflow, Docker, and PostgreSQL.
+**SparkTrends** is a **real-time market trends intelligence platform** that ingests, processes, and analyzes financial market data like stocks, and soon crypto to uncover emerging patterns.
 
+It simulates a production-style backend used in finance/fintech, powered by **Apache Kafka**, **Apache Spark**, **PostgreSQL**, and **Docker**.
 
-## Project Goal
+---
 
-In today's world, **data is knowledge**, and how quickly you are able to obtain that insight could determine whether you capitalize or let an opportunity slip away. The goal at SparkTrends is to decipher data cultivated from online sources and processing it into insight that offers a tactical market advantage.
+## Project Goals
 
-SparkTrends aims to:
-- Continuously gather data from API sources.
-- Detect sudden market trends and price changes.
-- Implement **sentiment analysis** alongside financial metrics.
-- Power an intuitive dashboard to facilitate data visualization.
+- **Continuously ingest** market data from APIs and WebSockets.  
+- **Process & enrich** through Kafka and Spark.  
+- **Compute core metrics** like returns, volatility, volume signals.  
+- **Store** results in PostgreSQL for analysis.
+- **Send alerts** via Slack when anomalies are detected
 
+---
 
-## Input & Output
+## Architecture
 
-### Input Sources
-- **Source**
-  - Alpha Vantage API.
-- **Description**
-  - Daily data is fetched for company news, stock prices, and cryptocurrency prices through scheduled API calls.
-- **Format**
-  - Raw input received as Python **list** or **dictionary** objects.
-  - The original data is serialized as **JSONB** and stored in PostgreSQL.
-  - Post processing with Apache Spark transforms and flattens the data before storing it in structured PostgreSQL tables with appropriate typed columns.
+[API & WebSocket Producers] → [Kafka] → [Kafka Broker] → [Spark Jobs] → [PostgreSQL] → [Slack Alerts]
 
-### Output Destinations
-- **Destination**
-  - PostgreSQL
-  - Dashboard (Future plans)
-- **Description**
-  - Cleaned company news, stock prices, and cryptocurrency prices data.
-  - Daily updates of trends and metrics.
-- **Format**
-  - Tabular SQL
-  - Visual dashboard
+- **Tables:** Company Data, 1 Minute Interval Bars, and Computed Metrics
 
+---
 
 ## Tech Stack
 
-- **Apache Kafka** – Daily ingestion of market news, and stock and cryptocurrency prices. 
-- **Apache Spark** – Scalable data processing and NLP trend tagging.
-- **Apache Airflow** – Workflow orchestration for batch pipelines.
-- **PostgreSQL** – Structured storage for processed trend data.
-- **Docker** - Full-stack containerized environment with dev/prod configs.
-- **Flask** – Hosts a web server with RESTful APIs.
-- **Python** – ETL logic, NLP, and Flask backend.
+- **Apache Kafka** – Single-node KRaft broker for ingest and buffering.  
+- **Apache Spark 4.0** – Batch transformation and streaming next.  
+- **PostgreSQL** – Durable storage for processed data.  
+- **Docker Compose** – Reproducible environment.  
+- **Python** – Producers, Spark jobs, and orchestration scripts.
 
+**Custom Spark image (dependencies to avoid misconfigurations)**
 
-## Architecture Diagram
+- `spark-sql-kafka-0-10_2.13:4.0.0`  
+- `spark-token-provider-kafka-0-10_2.13:4.0.0`  
+- `kafka-clients:3.6.1`  
+- `commons-pool2:2.12.0` (required by Spark 4.0 Kafka connector)  
+- **PostgreSQL JDBC:** `org.postgresql:postgresql:42.7.3`
 
-[API Data] -> [Kafka Producers] -> [Kafka Consumers] -> [PostgreSQL] -> [Apache Spark] -> [PostgreSQL] -> [Future Dashboard]
-The diagram will be orchestrated by Apache Airflow, which will run these tasks daily.
+The runner container is from the custom Spark image, so the driver and executors share the same classpath.
 
+---
 
-## Project Phases
+## What is Operational
 
-### **Phase 1: Infrastructure & Kafka (In Progress)**
-- `init_project.py` generates `.env`, `.env.example`, `docker-compose.yml`, and `requirements.txt`.
-- Set up Python, PostgreSQL and Kafka using container images.
-- Volume persistence and environment-aware Docker configs.
-- Initialized PostgreSQL tables and columns for data organization.
-- Compile json files containing essential data needed for API calls.
-- Centralized topic creator file to eliminate redundant code.
-- Centralized producer file to execute producers and consumers.
-- Kafka Producer ingests formatted news, stock and crypto data from an API.
-- Kafka consumer stores parsed records in PostgreSQL
+- Docker Compose creates **Postgres**, **Kafka**, **Spark master/worker**, and a **Runner** that runs the job.  
+- Spark **reads from the Kafka broker**, transforms OHLCV data, and **writes to Postgres**.
+- Spark streaming job **sends alerts to Slack** upon anomaly detection.
+- End-to-end: **API → Kafka → Spark → Postgres**.  
+- Future Plans: implement different ways to detect deviations and the ingestion of crypto data.
 
+---
 
-## Future Works In Progress ⚙️🚧
+## Quickstart
+
+### 1) Prerequisites
+- Docker Desktop / Docker Engine + Docker Compose  
+- Optional Python 3.11+ if you want to run utilities locally
+
+### 2) Environment
+Create a `.env` file at the repo root (example):
+
+```env
+# Postgres
+POSTGRES_USER=your_user
+POSTGRES_PASSWORD=your_pass
+POSTGRES_DB=your_db
+POSTGRES_HOST=your_host
+POSTGRES_PORT=your_port
+
+# APIs
+FINNHUB_API_KEY=your_key      # Stock Batch
+TWELVE_DATA_API_KEY=your_key  # Stock Streaming
+BIDANCE_API_KEY=your_key      # Crypto Streaming
+
+# WebHook
+SLACK_WEBHOOK=your_slack_webhook
+
+# Kafka
+KAFKA_BOOTSTRAP=your_kafka_port
+```
+
+### 3) Build and Run
+- `docker compose down -v`
+- `docker compose build --no-cache`
+- `docker compose up -d --force-recreate`
+
+### 4) Keep Track of your Logs
+- Logs can be monitored thourgh the Docker Desktop
+- `docker compose logs -f {YOUR_FILE}` if you input `docker compose up -d --force-recreate` in the terminal
+- Inputting `docker compose up` (after building) since the `-d` hides logs
+
+### 5) Verify in Postgres
+Run the following command and check your tables
+- docker exec -it market-postgres psql -U {YOUR_USER} -d {DB_NAME}
