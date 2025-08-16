@@ -1,4 +1,5 @@
 import os, requests, logging
+from pyspark.sql.streaming import StreamingQuery
 from pyspark.sql import SparkSession, DataFrame, Window, functions as F
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType, ArrayType
 from spark.utilities import write_stock_bars, write_stock_metrics, config
@@ -35,11 +36,15 @@ def send_slack_alert(message: str) -> None:
 
 # Process the computation to detect anomalies
 def process_computation(spark: SparkSession, bar_df: DataFrame) -> DataFrame:
-    # Start by pulling 10 bars (more than we need) from the bars table and for a specific symbol
-    bars = (
+    # Normalize the column names
+    curr = bar_df.select("symbol", "timestamp", "close", "volume")
+
+    # Only pull the previous 4 bars per symbol (curr + these 4)
+    prevFour = (
         spark.read
             .format("jdbc")
             .option("url", config["jdbc"]["url"])
+            .option("driver", config["jdbc"]["driver"])
             .option(
                 "dbtable",
                 """
@@ -49,13 +54,15 @@ def process_computation(spark: SparkSession, bar_df: DataFrame) -> DataFrame:
                          ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY timestamp DESC) as rn
                      FROM stock_bars
                  ) sub
-                 WHERE rn <= 10
+                 WHERE rn <= 4
                 ) as last_bars
                 """
             )
-            .option("driver", config["jdbc"]["driver"])
             .load()
     )
+
+    # Union the current bar + the last four bars
+    bars = prevFour.unionByName(curr)
 
     # Create a window to calculate the VWAP on a 5 minute window
     w = (Window.partitionBy("symbol")
@@ -63,88 +70,102 @@ def process_computation(spark: SparkSession, bar_df: DataFrame) -> DataFrame:
                .rowsBetween(-4, 0)
     )
 
-    # Calculate the 5 min VWAP, volatility, and check for anomalies
-    metrics = (
+    # Calculate the rolling metrics
+    vw_num = F.sum(F.col("close") * F.col("volume")).over(w)  # Numerator
+    vw_den = F.sum("volume").over(w)                          # Denominator
+    vwap_5 = F.when(vw_den > 0, vw_num / vw_den)              # Volume-Weighted Average Price
+
+    ret = (F.col("close") / F.lag("close", 1).over(w)) - 1    # Calculate returns
+    vol_5 = F.stddev(ret).over(w)                             # Volatility over the window
+
+    comp_metrics = (
         bars
-            .withColumn(
-                "vwap_5",
-                F.sum(F.col("close") * F.col("volume")).over(w) /
-                F.sum("volume").over(w)
-            )
-            .withColumn(
-                "vol_5",
-                F.stddev("close").over(w)
-            )
-            .withColumn(
-                "is_anomaly",
-                F.abs(F.col("close") - F.col("vwap_5")) > ANOMALY_THRESHOLD * F.col("vol_5")
-            )
+            .withColumn("vwap_5", vwap_5)
+            .withColumn("vol_5", vol_5)
     )
 
-    # Gather all recent messages to check for anomalies
-    latest_ts_per_symbol = (
-        bar_df.groupBy("symbol")
-              .agg(F.max("timestamp").alias("latest"))
+    # Gather the most recent rows per symbol for the anomlay detection
+    newest_sym = Window.partitionBy("symbol").orderBy(F.col("timestamp").desc())
+
+    # Drop the older bars
+    metrics = (
+        comp_metrics
+            .withColumn("rn", F.row_number().over(newest_sym))
+            .filter(F.col("rn") == 1)
+            .drop("rn")
     )
 
-    new_metrics = (
-        metrics.join(
-            latest_ts_per_symbol,
-            (metrics.symbol == latest_ts_per_symbol.symbol) &
-            (metrics.timestamp == latest_ts_per_symbol.latest),
-            "inner"
-        ).select(*metrics)
+    # Robust anomaly detection
+    metrics = metrics.withColumn(
+        "is_anomaly",
+        (F.col("vwap_5").isNotNull()) &
+        (F.col("vol_5").isNotNull()) &
+        (F.col("vol_5") > 0) &
+        (F.abs(F.col("close") - F.col("vwap_5")) > ANOMALY_THRESHOLD * F.col("vol_5"))
     )
 
-    return new_metrics
+    return metrics
 
 
 # Try to find anomalies and call on slack
 def detect_anomalies(metrics: DataFrame) -> None:
     # See if any anomalies pop up
-    anomalies = metrics.filter(F.col("is_anomaly")).collect()
+    anomalies = metrics.filter(F.col("is_anomaly")).limit(50)
 
-    # If the anomalies list is not empty then something came up
-    if anomalies:
-        lines = [
-            f"Symbol: {r['symbol']}  Time: {r['timestamp']}  Close: {r['close']:.2f}  VWAP(5): {r['vwap_5']:.2f}  Vol_5: {r['vol_5']:.2f}"
-            for r in anomalies
-        ]
-        message = "ANOMALY DETECTED\n" + "\n".join(lines)
-        send_slack_alert(message)
+    # Check if there's anything
+    rows = anomalies.collect()
+    if not rows:
+        return
+
+    # Send alerts
+    lines = []
+    for r in rows:
+        # guard against None just in case
+        c = r['close'] or 0.0
+        v = r['vwap_5'] or 0.0
+        sd = r['vol_5'] or 0.0
+        lines.append(
+            f"Symbol: {r['symbol']}  Time: {r['timestamp']}  Close: {c:.2f}  VWAP(5): {v:.2f}  Vol_5: {sd:.4f}"
+        )
+
+    send_slack_alert("ANOMALY DETECTED\n" + "\n".join(lines))
 
 
 # Streaming job ingesting raw trade data, aggregating it in 1 minute bars, and process each batch
 # TRY TO DEDUPLICATE THIS LATER IN CASE OF STREAMING ERRORS
-# ALSO ADD WATERMARKS TO SAFELY HANDLE DELAYED MESSAGES
-def run_minute_stream_metric(spark: SparkSession, topic: str) -> None:
+def run_minute_stream_metric(spark: SparkSession, topic: str) -> StreamingQuery:
     # Consume raw trade data from the stream
     raw_trades = (
         spark.readStream
              .format("kafka")
              .option("kafka.bootstrap.servers", BOOTSTRAP_SERVER)
              .option("subscribe", topic)
-             .option("startingOffsets", "latest")
+             .option("startingOffsets", "earliest")
              .option("failOnDataLoss", "false")
              .load()
              .selectExpr("CAST(value AS STRING) AS json")
              .select(
-                 F.from_json(F.col("json"), StructType([  # Store each trade in an array for later aggregation
-                     StructField("data", ArrayType(trade_schema), True)
-                 ])).alias("d")
+                 F.from_json(
+                     F.col("json"),
+                     StructType([StructField("data", ArrayType(trade_schema), True)])
+                 ).alias("d")  # Store each trade in an array for later aggregation
              )
-             .selectExpr("inline(d.data) AS trade")       # Pull trade data out of the subquery
+             .selectExpr("inline(d.data)")       # Pull trade data out of the subquery
              .select(
-                 F.col("trade.s").alias("symbol"),
-                 F.col("trade.p").alias("price"),
-                 F.col("trade.v").alias("volume"),
-                 (F.col("trade.t") / 1000).cast(TimestampType()).alias("timestamp")
+                 F.col("s").alias("symbol"),
+                 F.col("p").alias("price"),
+                 F.col("v").alias("volume"),
+                 (F.col("t") / 1000).cast(TimestampType()).alias("timestamp")
              )
+             .filter(F.col("symbol").isNotNull() & F.col("timestamp").isNotNull())
     )
+
+    # Add a watermark to account for late incoming data
+    trade_wm = raw_trades.withWatermark("timestamp", "30 seconds")
 
     # Aggregate the raw trades into 
     minute_bar = (
-        raw_trades
+        trade_wm
             # Group by the symbols in a 1 minute window
             .groupBy(
                 F.window(F.col("timestamp"), "1 minute"),
@@ -152,10 +173,10 @@ def run_minute_stream_metric(spark: SparkSession, topic: str) -> None:
             )
             # Aggregate them to add the OHLCV values
             .agg(
-                F.first("price").alias("open"),
+                F.min_by(F.col("price"), F.col("timestamp")).alias("open"),
                 F.max("price").alias("high"),
                 F.min("price").alias("low"),
-                F.last("price").alias("close"),
+                F.max_by(F.col("price"), F.col("timestamp")).alias("close"),
                 F.sum("volume").alias("volume")
             )
             .select(
@@ -179,18 +200,19 @@ def run_minute_stream_metric(spark: SparkSession, topic: str) -> None:
         # Search for anomalies
         detect_anomalies(metrics)
 
-    # Process each batch after every minute
-    (
+    # Start the stream and process each batch after every minute
+    query = (
         minute_bar
-            .writeStream                         # Beginning to define how to stream data
-            .trigger(processingTime="1 minute")  # Process each batch at the designated time interval
-            .foreachBatch(process_minute_batch)  # Manually process every static Data Frame received
-            .option(                             # Needed to remember which Kafka offsets were processed
-                "checkpointLocation",            # Also helps pickup a job again if it crashed or restarted
-                f"/checkpoints/minute_metrics"
+            .writeStream                                # Beginning to define how to stream data
+            .outputMode("append")                       # Make sure not to overwrite data
+            .trigger(processingTime="10 seconds")       # Process each batch at the designated time interval
+            .foreachBatch(process_minute_batch)         # Manually process every static Data Frame received
+            .option(                                    # Needed to remember which Kafka offsets were processed
+                "checkpointLocation",                   # Also helps pickup a job again if it crashed or restarted
+                f"/checkpoints/minute_metrics/{topic}"
             )
             .start()
     )
 
-    # Run until told to quit
-    spark.streams.awaitAnyTermination()
+    # Return the streaming query for clean termination
+    return query

@@ -38,6 +38,8 @@ async def main():
     producer = await connect_to_kafka(6, 5)
     spark = create_spark_session()
 
+    spark.sparkContext.setLogLevel("WARN")  # Hide most logs
+
     # Create the topics with retry logic
     create_topics([
         NewTopic("stream_stock", 3, 1),
@@ -47,10 +49,51 @@ async def main():
 
     symbols = load_symbols(args.file)
 
+    log.info("Beginning {args.mode} mode")
+
     # If we decide to stream
     if args.mode == "stream":
-        await stream_stock(symbols, producer, "stream_stock")
-        run_minute_stream_metric(spark, "stream_stock")
+        # 1) start the websocket→kafka stream task
+        stock_task = asyncio.create_task(
+            stream_stock(symbols, producer, "stream_stock"),
+            name="stream_stock"
+        )
+
+        # 2) start the Spark query (make sure your run_minute_stream_metric calls .start())
+        stock_query = run_minute_stream_metric(spark, "stream_stock")
+
+        # 3) await either: a) Spark termination, or b) stream task failure
+        spark_task = asyncio.create_task(
+            asyncio.to_thread(spark.streams.awaitAnyTermination),
+            name="spark_await"
+        )
+        try:
+            done, pending = await asyncio.wait(
+                {stock_task, spark_task},
+                return_when=asyncio.FIRST_EXCEPTION  # finishes if either errors/terminates
+            )
+
+            # if stream task died, log its exception and stop Spark
+            if stock_task in done and stock_task.exception():
+                exc = stock_task.exception()
+                log.error("stream_stock crashed", exc_info=exc)
+                if stock_query.isActive():
+                    stock_query.stop()
+
+            # if Spark finished first, we’re done; fall through to cleanup
+        finally:
+            # cancel whatever’s still running
+            for t in (stock_task, spark_task):
+                if not t.done():
+                    t.cancel()
+            await asyncio.gather(stock_task, spark_task, return_exceptions=True)
+
+            # shutdown Spark & Kafka cleanly
+            if stock_query.isActive():
+                stock_query.stop()
+            spark.stop()
+            await producer.stop()
+
 
     # If we get batch data
     elif args.mode == "batch":

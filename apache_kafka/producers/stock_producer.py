@@ -22,33 +22,42 @@ TWELVE_URL = "https://api.twelvedata.com/time_series"
 
 # Subscribe to Finnhub WebSocket for a list of symbols and publish each tick
 async def stream_stock(symbols: list[str], producer: AIOKafkaProducer, topic: str):
-    # Connect to the websocket
-    async with connect(f"wss://ws.finnhub.io?token={FINN_API_KEY}") as ws:
-        # Subscribe to all symbols in the list
-        for sym in symbols:
-            await ws.send(json.dumps({"type": "subscribe", "symbol": sym}))
-            log.info(f"Subscribed to {sym}")
+    # Keep the loop running
+    while True:
+        # Connect to the websocket
+        url = f"wss://ws.finnhub.io?token={FINN_API_KEY}"
+        async with connect(url, max_queue=None) as ws:
+            # Subscribe to all symbols in the list
+            for sym in symbols:
+                await ws.send(json.dumps({"type": "subscribe", "symbol": sym}))
+                log.info(f"Subscribed to {sym}")
+                await asyncio.sleep(0.02)  # Slight throttle
 
-        # Send the data received to the Kafka broker
-        async for msg in ws:
-            payload = json.load(msg)
-            # Store the trades in a list and iterate
-            for trade in payload.get("data", []):
-                # Fix the timestamp (in milisec so divide by 1k)
-                ts = datetime.fromtimestamp(trade["t"] / 1000, tz=timezone.utc)
-                # Frame the record in a dictionary
-                record = {
-                    "symbol": trade["s"],
-                    "price": trade["p"],
-                    "volume": trade["v"],
-                    "timestamp": ts.isoformat()
-                }
-                # Try sending it to the broker
-                try:
-                    await producer.send_and_wait(topic, record)
-                    log.info(f"Streamed {record['symbol']} at {record['ts']}")
-                except Exception as e:
-                    log.error(f"Failed to stream tick for {record['symbol']}: {e}")
+            # Send the data received to the Kafka broker
+            async for msg in ws:
+                payload = json.loads(msg)
+
+                # Skip unnecessary types
+                if payload.get("type") != "trade":
+                    continue
+                
+                # Frame values in a dictionary
+                for trade in payload.get("data", []):
+                    record = {"data": [{
+                        "s": trade["s"],
+                        "p": trade["p"],
+                        "v": trade["v"],
+                        "t": trade["t"]
+                    }]}
+
+                    # Try sending it to the broker
+                    try:
+                        await producer.send_and_wait(topic, record)
+                        log.info(f"Streamed {trade['s']} at {trade['t']}")
+                    # Log an error and backoff for a moment
+                    except Exception as e:
+                        log.error(f"Failed to stream tick for {trade.get('s')}: {e}")
+                        await asyncio.sleep(2)
 
 # -----
 
@@ -58,7 +67,7 @@ async def fetch_ohlcv_td(symbol: str, session: aiohttp.ClientSession) -> dict:
     params = {
         "symbol": symbol,
         "interval": "1min",
-        "outputsize": 25,
+        "outputsize": 15,
         "apikey": TWELVE_API_KEY
     }
     # Return an output to batch_stock

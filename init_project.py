@@ -281,7 +281,7 @@ runner_service = {
         '--master', 'spark://spark-master:7077',
         '--deploy-mode', 'client',
         '/app/edge_runner.py',
-        '--mode', 'batch'
+        '--mode', 'stream'
     ],
     'networks': ['sparktrends_net'],
 }

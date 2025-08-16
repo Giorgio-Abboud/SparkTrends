@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS stock_bars (
 );
 
 CREATE INDEX IF NOT EXISTS idx_stock_bars
-    ON stock_bars(symbol);
+    ON stock_bars(symbol, timestamp DESC);
 
 -- Storing computed metric data
 CREATE TABLE IF NOT EXISTS stock_metrics (

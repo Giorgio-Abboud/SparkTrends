@@ -147,7 +147,7 @@ services:
     - client
     - /app/edge_runner.py
     - --mode
-    - batch
+    - stream
     networks:
     - sparktrends_net
 volumes:
